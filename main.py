@@ -5,7 +5,7 @@ from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 from typing import Optional
 
-app = FastAPI(title="My Render Site")
+app = FastAPI(title="eeky808")
 
 # ---------- Static files & templates ----------
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -47,3 +47,15 @@ def create_item(item: Item):
     }
 
 app.include_router(api)
+
+@app.get("/debug/files")
+def debug_files():
+    import os
+    src = "/opt/render/project/src"
+    result = {"cwd": os.getcwd(), "root": sorted(os.listdir(src))}
+    tpl = os.path.join(src, "templates")
+    if os.path.isdir(tpl):
+        result["templates"] = sorted(os.listdir(tpl))
+    else:
+        result["templates"] = "MISSING"
+    return result
