@@ -26,8 +26,8 @@ def homepage(request: Request):
         "request": request,
         "title": "eeky808",
         "heading": "eeky808",
-        "tagline": "buildlogic site or smth",
-        "intro": "my build logic site♥️LMAO",
+        "tagline": "a buildlogic site",
+        "intro": "eeky808 is a buildlogic site duh",
     }
     return templates.TemplateResponse(request, "index.html", context)
 
