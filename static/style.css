@@ -14,6 +14,12 @@
 
 * { box-sizing: border-box; }
 
+/* Kill the ugly blue tap highlight on mobile */
+html {
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+}
+
 html, body {
     margin: 0;
     padding: 0;
@@ -167,6 +173,8 @@ body { position: relative; }
     transition: all 0.2s ease;
     text-transform: lowercase;
     letter-spacing: 0.02em;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
 }
 .btn-primary {
     color: #0a0a0a;
@@ -211,6 +219,8 @@ body { position: relative; }
     position: relative;
     overflow: hidden;
     backdrop-filter: blur(12px);
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
 }
 .card::before {
     content: '';
@@ -304,4 +314,13 @@ code {
     .hero { margin-bottom: 50px; }
     .grid { gap: 14px; margin-bottom: 50px; }
     .card { padding: 22px 20px; }
+}
+
+/* Subtle press feedback instead of the blue flash */
+.card:active,
+.btn:active,
+.footer a:active {
+    transform: scale(0.97);
+    opacity: 0.85;
+    transition: transform 0.05s ease, opacity 0.05s ease;
 }
