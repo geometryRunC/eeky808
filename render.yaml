@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: my-python-api
+    name: eeky808
     runtime: python
     plan: free
     buildCommand: pip install -r requirements.txt
