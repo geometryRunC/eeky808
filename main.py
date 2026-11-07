@@ -1,8 +1,8 @@
 from pathlib import Path
-import itertools, threading
+import time
 
-from fastapi import FastAPI, APIRouter, Request
-from fastapi.responses import HTMLResponse
+from fastapi import FastAPI, APIRouter, Request, HTTPException
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
@@ -12,14 +12,14 @@ BASE_DIR = Path(__file__).resolve().parent
 
 app = FastAPI(title="eeky808")
 
+# ---------- Static files & templates (defined ONCE) ----------
 static_dir = BASE_DIR / "static"
 if static_dir.is_dir():
     app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
 templates = Jinja2Templates(directory=BASE_DIR / "templates")
-# ---------- Static files & templates ----------
-app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
-templates = Jinja2Templates(directory=BASE_DIR / "templates")# ---------- HOMEPAGE (HTML via Jinja2) ----------
+
+# ---------- HOMEPAGE ----------
 @app.get("/", response_class=HTMLResponse)
 def homepage(request: Request):
     context = {
@@ -29,6 +29,19 @@ def homepage(request: Request):
         "intro": "my build logic site♥️LMAO",
     }
     return templates.TemplateResponse(request, "index.html", context)
+
+@app.get("/health")
+def health():
+    return {"status": "ok"}
+
+@app.get("/debug/files")
+def debug_files():
+    import os
+    src = "/opt/render/project/src"
+    result = {"cwd": os.getcwd(), "root": sorted(os.listdir(src))}
+    tpl = os.path.join(src, "templates")
+    result["templates"] = sorted(os.listdir(tpl)) if os.path.isdir(tpl) else "MISSING"
+    return result
 
 # ---------- APIs ----------
 api = APIRouter(prefix="/api")
@@ -54,24 +67,9 @@ def create_item(item: Item):
         "received": True,
     }
 
-app.include_router(api)
-
-@app.get("/debug/files")
-def debug_files():
-    import os
-    src = "/opt/render/project/src"
-    result = {"cwd": os.getcwd(), "root": sorted(os.listdir(src))}
-    tpl = os.path.join(src, "templates")
-    if os.path.isdir(tpl):
-        result["templates"] = sorted(os.listdir(tpl))
-    else:
-        result["templates"] = "MISSING"
-    return result
-
 # ---------- Text Panel Truth Table (7 inputs → 8-bit output) ----------
-# Format: (shift, i5, i4, i3, i2, i1, i0, char)
 _TEXT_PANEL_TRUTH = [
-    (0, 0, 0, 0, 0, 0, 0, ""),  # empty, skipped
+    (0, 0, 0, 0, 0, 0, 0, ""),
     (0, 0, 0, 0, 0, 0, 1, "a"),
     (0, 0, 0, 0, 0, 1, 0, "b"),
     (0, 0, 0, 0, 0, 1, 1, "c"),
@@ -123,7 +121,7 @@ _TEXT_PANEL_TRUTH = [
     (0, 1, 1, 0, 0, 0, 1, "î"),
     (0, 1, 1, 0, 0, 1, 0, "ï"),
     (0, 1, 1, 0, 0, 1, 1, "û"),
-    (0, 1, 1, 0, 1, 0, 0, ""),  # empty, skipped
+    (0, 1, 1, 0, 1, 0, 0, ""),
     (0, 1, 1, 0, 1, 0, 1, "["),
     (0, 1, 1, 0, 1, 1, 0, "]"),
     (0, 1, 1, 0, 1, 1, 1, '"'),
@@ -135,7 +133,7 @@ _TEXT_PANEL_TRUTH = [
     (0, 1, 1, 1, 1, 0, 1, "⬜"),
     (0, 1, 1, 1, 1, 1, 0, "▶"),
     (0, 1, 1, 1, 1, 1, 1, " "),
-    (1, 0, 0, 0, 0, 0, 0, " "),  # duplicate space, skipped
+    (1, 0, 0, 0, 0, 0, 0, " "),
     (1, 0, 0, 0, 0, 0, 1, "A"),
     (1, 0, 0, 0, 0, 1, 0, "B"),
     (1, 0, 0, 0, 0, 1, 1, "C"),
@@ -174,7 +172,7 @@ _TEXT_PANEL_TRUTH = [
     (1, 1, 0, 0, 1, 0, 0, ")"),
     (1, 1, 0, 0, 1, 0, 1, "_"),
     (1, 1, 0, 0, 1, 1, 0, "+"),
-    (1, 1, 0, 0, 1, 1, 1, "."),  # duplicate period, skipped
+    (1, 1, 0, 0, 1, 1, 1, "."),
     (1, 1, 0, 1, 0, 0, 0, "'"),
     (1, 1, 0, 1, 0, 0, 1, ":"),
     (1, 1, 0, 1, 0, 1, 0, "~"),
@@ -198,49 +196,70 @@ _TEXT_PANEL_TRUTH = [
     (1, 1, 1, 1, 1, 0, 0, "⬅"),
     (1, 1, 1, 1, 1, 0, 1, "⬆"),
     (1, 1, 1, 1, 1, 1, 0, "⬇"),
-    (1, 1, 1, 1, 1, 1, 1, " "),  # duplicate space, skipped
+    (1, 1, 1, 1, 1, 1, 1, " "),
 ]
 
 def _to_8bit(shift, i5, i4, i3, i2, i1, i0) -> str:
     """7 input bits → 8-bit binary string (leading 0 prepended)."""
     return f"0{shift}{i5}{i4}{i3}{i2}{i1}{i0}"
 
-# Build the lookup map once at import time
+# Build the lookup map once at import time (first occurrence wins)
 _ALPHABET: dict = {}
 for _shift, _i5, _i4, _i3, _i2, _i1, _i0, _char in _TEXT_PANEL_TRUTH:
     if _char == "":
-        continue  # skip empty entries
+        continue
     if _char in _ALPHABET:
-        continue  # first occurrence wins (handles duplicate space / period)
+        continue
     _ALPHABET[_char] = {"value": _to_8bit(_shift, _i5, _i4, _i3, _i2, _i1, _i0)}
 
-@api.get("/alphabet/table")
-def alphabet_table(response: Response):
-    """Full truth table as an ordered list of {value: "8-bit"} entries."""
-    response.headers["Cache-Control"] = "no-store"
-    return [
-        {"value": obj["value"]}
-        for obj in _ALPHABET.values()
-    ]
+_NO_STORE = {"Cache-Control": "no-store"}
 
-_counter = itertools.count()
-_lock = threading.Lock()
-_state = {"idx": 0}
+# ---------- Alphabet endpoints ----------
+# IMPORTANT: specific routes FIRST, dynamic /{char} LAST.
 
-@api.get("/alphabet/current")
-def alphabet_current(response: Response):
-    response.headers["Cache-Control"] = "no-store"
+@api.get("/alphabet", operation_id="alphabet_all")
+def alphabet_all():
+    return JSONResponse(_ALPHABET, headers=_NO_STORE)
+
+@api.get("/alphabet/table", operation_id="alphabet_table")
+def alphabet_table():
+    """Full table as ordered list of {value: "8-bit"} entries."""
+    return JSONResponse(
+        [{"value": obj["value"]} for obj in _ALPHABET.values()],
+        headers=_NO_STORE,
+    )
+
+@api.get("/alphabet/full", operation_id="alphabet_full")
+def alphabet_full():
+    """Raw truth table: shift/i5…i0/char/value per row (128 rows)."""
+    return JSONResponse(
+        [
+            {
+                "shift": shift, "i5": i5, "i4": i4, "i3": i3,
+                "i2": i2, "i1": i1, "i0": i0,
+                "char": char,
+                "value": _to_8bit(shift, i5, i4, i3, i2, i1, i0),
+            }
+            for shift, i5, i4, i3, i2, i1, i0, char in _TEXT_PANEL_TRUTH
+        ],
+        headers=_NO_STORE,
+    )
+
+@api.get("/alphabet/current", operation_id="alphabet_current")
+def alphabet_current():
+    """Current character's 8-bit value — advances once per wall-clock second."""
     if not _ALPHABET:
-        return {"value": "00000000"}
+        return JSONResponse({"value": "00000000"}, headers=_NO_STORE)
     chars = list(_ALPHABET.keys())
-    with _lock:
-        idx = _state["idx"]
-        _state["idx"] = (idx + 1) % len(chars)
-    return _ALPHABET[chars[idx]]
+    idx = int(time.time()) % len(chars)
+    return JSONResponse(_ALPHABET[chars[idx]], headers=_NO_STORE)
 
-@api.get("/alphabet/{char}")
+# Dynamic catch-all MUST come after /current, /table, /full
+@api.get("/alphabet/{char}", operation_id="alphabet_char")
 def get_char_value(char: str):
-    """Look up a single character's 8-bit value."""
     if char in _ALPHABET:
         return {"char": char, **_ALPHABET[char]}
     raise HTTPException(status_code=404, detail=f"Character {char!r} not in truth table")
+
+# ---------- Mount router AFTER all routes are defined ----------
+app.include_router(api)
