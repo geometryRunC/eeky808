@@ -27,7 +27,7 @@ def homepage(request: Request):
         "heading": "adsgrup",
         "intro": "my build logic site♥️LMAO",
     }
-    return templates.TemplateResponse("index.html", context)
+    return templates.TemplateResponse(request, "index.html", context)
 
 # ---------- APIs ----------
 api = APIRouter(prefix="/api")
