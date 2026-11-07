@@ -1,14 +1,20 @@
 from pathlib import Path
-from fastapi.templating import Jinja2Templates
+
+from fastapi import FastAPI, APIRouter, Request
+from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
+from pydantic import BaseModel
+from typing import Optional
+
+# ---------- Paths (absolute, cwd-independent) ----------
+BASE_DIR = Path(__file__).resolve().parent
 
 app = FastAPI(title="eeky808")
 
-BASE_DIR = Path(__file__).resolve().parent
-
+# ---------- Static files & templates ----------
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
-templates = Jinja2Templates(directory=BASE_DIR / "templates")
-# ---------- HOMEPAGE (HTML via Jinja2) ----------
+templates = Jinja2Templates(directory=BASE_DIR / "templates")# ---------- HOMEPAGE (HTML via Jinja2) ----------
 @app.get("/", response_class=HTMLResponse)
 def homepage(request: Request):
     context = {
