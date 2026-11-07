@@ -12,7 +12,7 @@ BASE_DIR = Path(__file__).resolve().parent
 
 app = FastAPI(title="eeky808")
 
-# ---------- Static files & templates (defined ONCE) ----------
+# ---------- Static files & templates ----------
 static_dir = BASE_DIR / "static"
 if static_dir.is_dir():
     app.mount("/static", StaticFiles(directory=static_dir), name="static")
@@ -25,7 +25,8 @@ def homepage(request: Request):
     context = {
         "request": request,
         "title": "eeky808",
-        "heading": "adsgrup",
+        "heading": "eeky808",
+        "tagline": "buildlogic site or smth",
         "intro": "my build logic site♥️LMAO",
     }
     return templates.TemplateResponse(request, "index.html", context)
@@ -214,24 +215,25 @@ for _shift, _i5, _i4, _i3, _i2, _i1, _i0, _char in _TEXT_PANEL_TRUTH:
 
 _NO_STORE = {"Cache-Control": "no-store"}
 
-# ---------- Alphabet endpoints ----------
+# ---------- Text Panel endpoints ----------
 # IMPORTANT: specific routes FIRST, dynamic /{char} LAST.
 
-@api.get("/alphabet", operation_id="alphabet_all")
-def alphabet_all():
+@api.get("/txtpanel", operation_id="txtpanel_all")
+def txtpanel_all():
+    """Full map: {char: {"value": "8-bit"}} (deduped, empties skipped)."""
     return JSONResponse(_ALPHABET, headers=_NO_STORE)
 
-@api.get("/alphabet/table", operation_id="alphabet_table")
-def alphabet_table():
-    """Full table as ordered list of {value: "8-bit"} entries."""
+@api.get("/txtpanel/table", operation_id="txtpanel_table")
+def txtpanel_table():
+    """Deduped truth table as ordered list of {value: "8-bit"} entries."""
     return JSONResponse(
         [{"value": obj["value"]} for obj in _ALPHABET.values()],
         headers=_NO_STORE,
     )
 
-@api.get("/alphabet/full", operation_id="alphabet_full")
-def alphabet_full():
-    """Raw truth table: shift/i5…i0/char/value per row (128 rows)."""
+@api.get("/txtpanel/full", operation_id="txtpanel_full")
+def txtpanel_full():
+    """Raw truth table: shift/i5…i0/char/value per row (128 rows, nothing skipped)."""
     return JSONResponse(
         [
             {
@@ -245,8 +247,8 @@ def alphabet_full():
         headers=_NO_STORE,
     )
 
-@api.get("/alphabet/current", operation_id="alphabet_current")
-def alphabet_current():
+@api.get("/txtpanel/current", operation_id="txtpanel_current")
+def txtpanel_current():
     """Current character's 8-bit value — advances once per wall-clock second."""
     if not _ALPHABET:
         return JSONResponse({"value": "00000000"}, headers=_NO_STORE)
@@ -254,9 +256,22 @@ def alphabet_current():
     idx = int(time.time()) % len(chars)
     return JSONResponse(_ALPHABET[chars[idx]], headers=_NO_STORE)
 
-# Dynamic catch-all MUST come after /current, /table, /full
-@api.get("/alphabet/{char}", operation_id="alphabet_char")
-def get_char_value(char: str):
+# ---------- "Hello World!" cycler (faster than /current) ----------
+_HELLO_WORLD = "Hello World! "   # trailing space = pause before looping
+_HELLO_INTERVAL = 0.5  # seconds per character — set to 0.1 for faster
+
+@api.get("/txtpanel/hello", operation_id="txtpanel_hello")
+def txtpanel_hello():
+    """Cycles through 'Hello World! ' every _HELLO_INTERVAL seconds."""
+    ticks_per_sec = max(1, round(1 / _HELLO_INTERVAL))
+    idx = int(time.time() * ticks_per_sec) % len(_HELLO_WORLD)
+    entry = _ALPHABET.get(_HELLO_WORLD[idx])
+    return JSONResponse(entry or {"value": "00000000"}, headers=_NO_STORE)
+
+# Dynamic catch-all MUST come after /current, /table, /full, /hello
+@api.get("/txtpanel/{char}", operation_id="txtpanel_char")
+def txtpanel_char(char: str):
+    """Look up a single character's 8-bit value."""
     if char in _ALPHABET:
         return {"char": char, **_ALPHABET[char]}
     raise HTTPException(status_code=404, detail=f"Character {char!r} not in truth table")
