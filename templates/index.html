@@ -4,6 +4,9 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>{{ title }}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="/static/style.css" />
 </head>
 <body>
@@ -18,51 +21,51 @@
             <p class="hero-tagline">{{ tagline }}</p>
             <p class="hero-intro">{{ intro }}</p>
             <div class="hero-actions">
-                <a class="btn btn-primary" href="/docs">Open API Docs &rarr;</a>
-                <a class="btn btn-ghost" href="/api/txtpanel">View JSON</a>
+                <a class="btn btn-primary" href="/docs">open api docs -&gt;</a>
+                <a class="btn btn-ghost" href="/api/txtpanel">view json</a>
             </div>
         </header>
 
         <section class="grid">
             <a class="card" href="/api/txtpanel">
-                <h2 class="card-title">Full Alphabet</h2>
-                <p class="card-desc">Every character mapped to its 8-bit value.</p>
+                <h2 class="card-title">full alphabet</h2>
+                <p class="card-desc">every character mapped to its 8-bit value.</p>
                 <span class="card-path">/api/txtpanel</span>
             </a>
 
             <a class="card" href="/api/txtpanel/table">
-                <h2 class="card-title">Truth Table</h2>
-                <p class="card-desc">Deduped list of <code>{value}</code> entries in order.</p>
+                <h2 class="card-title">truth table</h2>
+                <p class="card-desc">deduped list of <code>{value}</code> entries in order.</p>
                 <span class="card-path">/api/txtpanel/table</span>
             </a>
 
             <a class="card" href="/api/txtpanel/full">
-                <h2 class="card-title">Raw Table</h2>
-                <p class="card-desc">All 128 rows with shift, i5&hellip;i0, char, value.</p>
+                <h2 class="card-title">raw table</h2>
+                <p class="card-desc">all 128 rows with shift, i5&hellip;i0, char, value.</p>
                 <span class="card-path">/api/txtpanel/full</span>
             </a>
 
             <a class="card" href="/api/txtpanel/current">
-                <h2 class="card-title">Current Char</h2>
-                <p class="card-desc">Advances one character per second, wall-clock synced.</p>
+                <h2 class="card-title">current char</h2>
+                <p class="card-desc">advances one character per second, wall-clock synced.</p>
                 <span class="card-path">/api/txtpanel/current</span>
             </a>
 
             <a class="card" href="/api/txtpanel/hello">
-                <h2 class="card-title">Hello World</h2>
-                <p class="card-desc">Cycles <code>Hello World! </code> twice per second.</p>
+                <h2 class="card-title">hello world</h2>
+                <p class="card-desc">cycles <code>Hello World! </code> twice per second.</p>
                 <span class="card-path">/api/txtpanel/hello</span>
             </a>
 
             <a class="card" href="/api/hello">
-                <h2 class="card-title">Demo API</h2>
-                <p class="card-desc">Simple hello endpoint for testing.</p>
+                <h2 class="card-title">demo api</h2>
+                <p class="card-desc">simple hello endpoint for testing.</p>
                 <span class="card-path">/api/hello</span>
             </a>
         </section>
 
         <footer class="footer">
-            <span>built on <a href="https://render.com" target="_blank" rel="noopener">Render</a></span>
+            <span>built on <a href="https://render.com" target="_blank" rel="noopener">render</a></span>
             <span>&middot;</span>
             <a href="/docs">/docs</a>
             <span>&middot;</span>
