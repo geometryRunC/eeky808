@@ -26,11 +26,11 @@ def homepage(request: Request):
         "request": request,
         "title": "eeky808",
         "heading": "eeky808",
-        "tagline": "a buildlogic site",
-        "intro": "eeky808 is a buildlogic site duh",
+        "tagline": "my build logic site or whatever",
+        "intro": "made this cuz im obsessed with build logic on roblox lol",
     }
     return templates.TemplateResponse(request, "index.html", context)
-
+    
 @app.get("/health")
 def health():
     return {"status": "ok"}
