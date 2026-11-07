@@ -1,2 +1,3 @@
 fastapi[all]
 jinja2
+starlette>=1.0
