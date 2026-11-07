@@ -7,11 +7,15 @@ from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 from typing import Optional
 
-# ---------- Paths (absolute, cwd-independent) ----------
 BASE_DIR = Path(__file__).resolve().parent
 
 app = FastAPI(title="eeky808")
 
+static_dir = BASE_DIR / "static"
+if static_dir.is_dir():
+    app.mount("/static", StaticFiles(directory=static_dir), name="static")
+
+templates = Jinja2Templates(directory=BASE_DIR / "templates")
 # ---------- Static files & templates ----------
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
 templates = Jinja2Templates(directory=BASE_DIR / "templates")# ---------- HOMEPAGE (HTML via Jinja2) ----------
