@@ -7,16 +7,67 @@
     <link rel="stylesheet" href="/static/style.css" />
 </head>
 <body>
-    <main>
-        <h1>{{ heading }}</h1>
-        <p>{{ intro }}</p>
+    <div class="bg-orb bg-orb-1"></div>
+    <div class="bg-orb bg-orb-2"></div>
+    <div class="bg-orb bg-orb-3"></div>
 
-        <h2>Try the APIs</h2>
-        <ul>
-            <li><a href="/api/hello">/api/hello</a></li>
-            <li><a href="/api/items/1">/api/items/1</a></li>
-            <li><a href="/docs">/docs</a> — interactive API documentation</li>
-        </ul>
+    <main class="container">
+        <header class="hero">
+            <div class="badge">live · python · fastapi</div>
+            <h1 class="hero-title">{{ heading }}</h1>
+            <p class="hero-tagline">{{ tagline }}</p>
+            <p class="hero-intro">{{ intro }}</p>
+            <div class="hero-actions">
+                <a class="btn btn-primary" href="/docs">Open API Docs &rarr;</a>
+                <a class="btn btn-ghost" href="/api/txtpanel">View JSON</a>
+            </div>
+        </header>
+
+        <section class="grid">
+            <a class="card" href="/api/txtpanel">
+                <h2 class="card-title">Full Alphabet</h2>
+                <p class="card-desc">Every character mapped to its 8-bit value.</p>
+                <span class="card-path">/api/txtpanel</span>
+            </a>
+
+            <a class="card" href="/api/txtpanel/table">
+                <h2 class="card-title">Truth Table</h2>
+                <p class="card-desc">Deduped list of <code>{value}</code> entries in order.</p>
+                <span class="card-path">/api/txtpanel/table</span>
+            </a>
+
+            <a class="card" href="/api/txtpanel/full">
+                <h2 class="card-title">Raw Table</h2>
+                <p class="card-desc">All 128 rows with shift, i5&hellip;i0, char, value.</p>
+                <span class="card-path">/api/txtpanel/full</span>
+            </a>
+
+            <a class="card" href="/api/txtpanel/current">
+                <h2 class="card-title">Current Char</h2>
+                <p class="card-desc">Advances one character per second, wall-clock synced.</p>
+                <span class="card-path">/api/txtpanel/current</span>
+            </a>
+
+            <a class="card" href="/api/txtpanel/hello">
+                <h2 class="card-title">Hello World</h2>
+                <p class="card-desc">Cycles <code>Hello World! </code> twice per second.</p>
+                <span class="card-path">/api/txtpanel/hello</span>
+            </a>
+
+            <a class="card" href="/api/hello">
+                <h2 class="card-title">Demo API</h2>
+                <p class="card-desc">Simple hello endpoint for testing.</p>
+                <span class="card-path">/api/hello</span>
+            </a>
+        </section>
+
+        <footer class="footer">
+            <span>built on <a href="https://render.com" target="_blank" rel="noopener">Render</a></span>
+            <span>&middot;</span>
+            <a href="/docs">/docs</a>
+            <span>&middot;</span>
+            <a href="/openapi.json">/openapi.json</a>
+        </footer>
     </main>
 </body>
 </html>
