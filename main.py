@@ -1,13 +1,20 @@
 from pathlib import Path
+import io
 import time
 import threading
 
-from fastapi import FastAPI, APIRouter, Request, HTTPException
+from fastapi import FastAPI, APIRouter, Request, HTTPException, UploadFile, File
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 from typing import Optional
+
+try:
+    from PIL import Image, ImageOps
+    _PIL_AVAILABLE = True
+except ImportError:
+    _PIL_AVAILABLE = False
 
 from truthtable import TEXT_PANEL_TRUTH, to_8bit
 
@@ -21,7 +28,7 @@ if static_dir.is_dir():
 
 templates = Jinja2Templates(directory=BASE_DIR / "templates")
 
-# ---------- HOMEPAGE ----------
+# ---------- PAGES ----------
 @app.get("/", response_class=HTMLResponse)
 def homepage(request: Request):
     context = {
@@ -39,13 +46,15 @@ def health():
 
 @app.get("/tool", response_class=HTMLResponse)
 def tool_page(request: Request):
-    context = {"request": request, "title": "text panel tool - eeky808"}
-    return templates.TemplateResponse(request, "tool.html", context)
+    return templates.TemplateResponse(request, "tool.html", {"request": request, "title": "text panel tool - eeky808"})
 
 @app.get("/truthtable", response_class=HTMLResponse)
 def truthtable_page(request: Request):
-    context = {"request": request, "title": "truth table - eeky808"}
-    return templates.TemplateResponse(request, "truthtable.html", context)
+    return templates.TemplateResponse(request, "truthtable.html", {"request": request, "title": "truth table - eeky808"})
+
+@app.get("/image", response_class=HTMLResponse)
+def image_page(request: Request):
+    return templates.TemplateResponse(request, "image.html", {"request": request, "title": "image panel - eeky808"})
 
 # ---------- APIs ----------
 api = APIRouter(prefix="/api")
@@ -77,7 +86,7 @@ for _shift, _i5, _i4, _i3, _i2, _i1, _i0, _char in TEXT_PANEL_TRUTH:
     _ALPHABET[_char] = {"value": to_8bit(_shift, _i5, _i4, _i3, _i2, _i1, _i0)}
 
 _SPACE_VALUE = _ALPHABET[" "]["value"]      # 00111111
-_NOTHING_VALUE = "10000000"                  # idle — MSB=1
+_NOTHING_VALUE = "10000000"                  # idle — MSB=1 is unique
 _NO_STORE = {"Cache-Control": "no-store"}
 
 # ---------- Text Panel endpoints ----------
@@ -137,6 +146,7 @@ def txtpanel_inputs(char: str):
 def txtpanel_nothing():
     return JSONResponse({"value": _NOTHING_VALUE}, headers=_NO_STORE)
 
+# Dynamic catch-all LAST
 @api.get("/txtpanel/{char}", operation_id="txtpanel_char")
 def txtpanel_char(char: str):
     if char in _ALPHABET:
@@ -153,7 +163,7 @@ _TYPEWRITER_STATE = {
     "last_served_value": None,
     "last_served_char": None,
     "last_served_at": 0.0,
-    "last_visible_char": None,     # last non-idle char — panel holds this on screen
+    "last_visible_char": None,
     "last_visible_value": None,
 }
 
@@ -181,7 +191,6 @@ def typewriter_current():
         if not text:
             value = _NOTHING_VALUE
             char = None
-            # do NOT touch last_visible_* — panel still shows the previous char
         elif _TYPEWRITER_STATE["pending_space"]:
             _TYPEWRITER_STATE["pending_space"] = False
             value = _SPACE_VALUE
@@ -243,4 +252,159 @@ def typewriter_clear():
         _TYPEWRITER_STATE["last_visible_value"] = None
     return JSONResponse({"status": "cleared"}, headers=_NO_STORE)
 
+# ---------- Image panel ----------
+_IMAGE_LOCK = threading.Lock()
+_IMAGE_STATE = {
+    "16": {"bits": "", "pos": 0},
+    "32": {"bits": "", "pos": {1: 0, 2: 0, 3: 0, 4: 0}},
+}
+
+# Quadrant mapping for a 32×32 image split into 4 panels
+#   [1][2]
+#   [3][4]
+_PANEL_QUADRANTS = {
+    1: (range(0, 16),  range(0, 16)),    # top-left
+    2: (range(0, 16),  range(16, 32)),   # top-right
+    3: (range(16, 32), range(0, 16)),    # bottom-left
+    4: (range(16, 32), range(16, 32)),   # bottom-right
+}
+
+def _process_image(data: bytes, size: int) -> str:
+    """Crop → square, resize, Floyd-Steinberg dither to 1-bit. Return '0'/'1' string."""
+    if not _PIL_AVAILABLE:
+        raise HTTPException(500, "pillow not installed on server")
+    try:
+        img = Image.open(io.BytesIO(data)).convert("L")
+    except Exception as e:
+        raise HTTPException(400, f"could not read image: {e}")
+    img = ImageOps.fit(img, (size, size), method=Image.Resampling.LANCZOS)
+    img = img.convert("1", dither=Image.Dither.FLOYDSTEINBERG)
+    pixels = img.load()
+    bits = []
+    for y in range(size):
+        for x in range(size):
+            bits.append("1" if pixels[x, y] > 0 else "0")
+    return "".join(bits)
+
+def _get_quadrant_bits(bits32: str, quadrant: int) -> str:
+    """Extract the 256 bits belonging to one quadrant of a 1024-bit 32×32 image."""
+    rows, cols = _PANEL_QUADRANTS[quadrant]
+    result = []
+    for y in rows:
+        for x in cols:
+            result.append(bits32[y * 32 + x])
+    return "".join(result)
+
+@api.post("/panel/upload", operation_id="panel_upload")
+async def panel_upload(file: UploadFile = File(...)):
+    """Upload image, prepare 16×16 and 32×32 versions."""
+    if not _PIL_AVAILABLE:
+        raise HTTPException(500, "pillow not installed on server")
+    data = await file.read()
+    if len(data) > 10 * 1024 * 1024:
+        raise HTTPException(400, "image too big (max 10 MB)")
+
+    bits16 = _process_image(data, 16)
+    bits32 = _process_image(data, 32)
+
+    with _IMAGE_LOCK:
+        _IMAGE_STATE["16"]["bits"] = bits16
+        _IMAGE_STATE["16"]["pos"] = 0
+        _IMAGE_STATE["32"]["bits"] = bits32
+        _IMAGE_STATE["32"]["pos"] = {1: 0, 2: 0, 3: 0, 4: 0}
+
+    return JSONResponse(
+        {"status": "ok", "size16": len(bits16), "size32": len(bits32)},
+        headers=_NO_STORE,
+    )
+
+class DrawBody(BaseModel):
+    bits: str  # exactly 256 chars of '0'/'1' — 16×16 row-major
+
+@api.post("/panel/draw", operation_id="panel_draw")
+def panel_draw(body: DrawBody):
+    """Set the panel image directly from a 16×16 bitmap. Upscales 2× for the 32×32 version."""
+    bits = (body.bits or "").strip()
+    if len(bits) != 256 or any(c not in "01" for c in bits):
+        raise HTTPException(400, "bits must be exactly 256 chars of '0' or '1'")
+
+    # upscale 16×16 → 32×32 (each pixel → 2×2 block)
+    rows32 = []
+    for y in range(16):
+        row = bits[y * 16:(y + 1) * 16]
+        doubled = "".join(c * 2 for c in row)
+        rows32.append(doubled)
+        rows32.append(doubled)
+    bits32 = "".join(rows32)
+
+    with _IMAGE_LOCK:
+        _IMAGE_STATE["16"]["bits"] = bits
+        _IMAGE_STATE["16"]["pos"] = 0
+        _IMAGE_STATE["32"]["bits"] = bits32
+        _IMAGE_STATE["32"]["pos"] = {1: 0, 2: 0, 3: 0, 4: 0}
+
+    return JSONResponse({"status": "ok"}, headers=_NO_STORE)
+
+@api.get("/panel/current", operation_id="panel_current")
+def panel_current():
+    """16×16 panel: next pixel per GET, advances cursor. Idle when done."""
+    with _IMAGE_LOCK:
+        bits = _IMAGE_STATE["16"]["bits"]
+        if not bits:
+            return JSONResponse({"value": _NOTHING_VALUE}, headers=_NO_STORE)
+        pos = _IMAGE_STATE["16"]["pos"]
+        if pos >= len(bits):
+            return JSONResponse({"value": _NOTHING_VALUE}, headers=_NO_STORE)
+        bit = bits[pos]
+        _IMAGE_STATE["16"]["pos"] = pos + 1
+    return JSONResponse({"value": f"0000000{bit}"}, headers=_NO_STORE)
+
+@api.get("/panel/panel{quadrant}/current", operation_id="panel_quadrant_current")
+def panel_quadrant_current(quadrant: int):
+    """32×32 split across 4 panels. quadrant 1=TL, 2=TR, 3=BL, 4=BR."""
+    if quadrant not in _PANEL_QUADRANTS:
+        raise HTTPException(404, "no such panel (must be 1-4)")
+    with _IMAGE_LOCK:
+        bits32 = _IMAGE_STATE["32"]["bits"]
+        if not bits32:
+            return JSONResponse({"value": _NOTHING_VALUE}, headers=_NO_STORE)
+        quadrant_bits = _get_quadrant_bits(bits32, quadrant)
+        pos = _IMAGE_STATE["32"]["pos"][quadrant]
+        if pos >= len(quadrant_bits):
+            return JSONResponse({"value": _NOTHING_VALUE}, headers=_NO_STORE)
+        bit = quadrant_bits[pos]
+        _IMAGE_STATE["32"]["pos"][quadrant] = pos + 1
+    return JSONResponse({"value": f"0000000{bit}"}, headers=_NO_STORE)
+
+@api.get("/panel/status", operation_id="panel_status")
+def panel_status():
+    """Current image state — bits + cursor for 16×16 and all four 32×32 quadrants."""
+    with _IMAGE_LOCK:
+        bits16 = _IMAGE_STATE["16"]["bits"]
+        bits32 = _IMAGE_STATE["32"]["bits"]
+        pos16 = _IMAGE_STATE["16"]["pos"]
+        pos32 = dict(_IMAGE_STATE["32"]["pos"])
+    return JSONResponse({
+        "16": {"bits": bits16, "length": len(bits16), "pos": pos16},
+        "32": {"bits": bits32, "length": len(bits32), "pos": pos32},
+    }, headers=_NO_STORE)
+
+@api.post("/panel/replay", operation_id="panel_replay")
+def panel_replay():
+    """Reset all cursors so the current image can be re-sent."""
+    with _IMAGE_LOCK:
+        _IMAGE_STATE["16"]["pos"] = 0
+        _IMAGE_STATE["32"]["pos"] = {1: 0, 2: 0, 3: 0, 4: 0}
+    return JSONResponse({"status": "replay"}, headers=_NO_STORE)
+
+@api.post("/panel/clear", operation_id="panel_clear")
+def panel_clear():
+    with _IMAGE_LOCK:
+        _IMAGE_STATE["16"]["bits"] = ""
+        _IMAGE_STATE["16"]["pos"] = 0
+        _IMAGE_STATE["32"]["bits"] = ""
+        _IMAGE_STATE["32"]["pos"] = {1: 0, 2: 0, 3: 0, 4: 0}
+    return JSONResponse({"status": "cleared"}, headers=_NO_STORE)
+
+# ---------- Mount router ----------
 app.include_router(api)
