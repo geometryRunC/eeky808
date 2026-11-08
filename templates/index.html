@@ -26,6 +26,23 @@
             </div>
         </header>
 
+        <section class="typewriter">
+            <h2 class="typewriter-title">typewriter</h2>
+            <p class="typewriter-desc">type something and it shows up on the panel one letter at a time.</p>
+            <form class="typewriter-form" id="typewriter-form">
+                <input 
+                    type="text" 
+                    id="typewriter-input" 
+                    class="typewriter-input"
+                    maxlength="500" 
+                    placeholder="hello world..." 
+                    autocomplete="off" 
+                />
+                <button type="submit" class="btn btn-primary">send -&gt;</button>
+            </form>
+            <p class="typewriter-status" id="typewriter-status">press enter to send</p>
+        </section>
+
         <section class="grid">
             <a class="card" href="/api/txtpanel">
                 <h2 class="card-title">all the txt panel letters</h2>
@@ -51,16 +68,16 @@
                 <span class="card-path">/api/txtpanel/current</span>
             </a>
 
-            <a class="card" href="/api/txtpanel/hello">
-                <h2 class="card-title">hello world</h2>
-                <p class="card-desc">spits out <code>Hello World! </code> twice a sec. classic.</p>
-                <span class="card-path">/api/txtpanel/hello</span>
+            <a class="card" href="/api/typewriter/current">
+                <h2 class="card-title">typewriter</h2>
+                <p class="card-desc">next letter the panel should show. advances each GET.</p>
+                <span class="card-path">/api/typewriter/current</span>
             </a>
 
-            <a class="card" href="/api/hello">
-                <h2 class="card-title">test thing</h2>
-                <p class="card-desc">just says hi so i know its not broken.</p>
-                <span class="card-path">/api/hello</span>
+            <a class="card" href="/api/typewriter/status">
+                <h2 class="card-title">whats on the panel</h2>
+                <p class="card-desc">current text, cursor position, next character. peek at the state.</p>
+                <span class="card-path">/api/typewriter/status</span>
             </a>
         </section>
 
@@ -72,5 +89,34 @@
             <a href="/openapi.json">/openapi.json</a>
         </footer>
     </main>
+
+    <script>
+        document.getElementById('typewriter-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const input = document.getElementById('typewriter-input');
+            const status = document.getElementById('typewriter-status');
+            const text = input.value;
+            if (!text.trim()) {
+                status.textContent = '> type something first lol';
+                return;
+            }
+            status.textContent = '> sending...';
+            try {
+                const res = await fetch('/api/typewriter', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text })
+                });
+                if (res.ok) {
+                    status.textContent = '> sent! ' + text.length + ' chars heading to the panel';
+                    input.value = '';
+                } else {
+                    status.textContent = '> oops server said no';
+                }
+            } catch (err) {
+                status.textContent = '> network error lol';
+            }
+        });
+    </script>
 </body>
 </html>
