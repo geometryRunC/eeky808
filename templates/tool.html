@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{{ title }}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+    <div class="bg-orb bg-orb-1"></div>
+    <div class="bg-orb bg-orb-2"></div>
+    <div class="bg-orb bg-orb-3"></div>
+
+    <main class="container">
+        <header class="hero">
+            <div class="badge">text panel tool</div>
+            <h1 class="hero-title">text panel tool</h1>
+            <p class="hero-tagline">get the inputs for any character</p>
+            <div class="hero-actions">
+                <a class="btn btn-ghost" href="/">&larr; back home</a>
+            </div>
+        </header>
+
+        <section class="tool-input">
+            <label for="char-input" class="tool-label">type a character</label>
+            <input type="text" id="char-input" class="tool-input-field" placeholder="a" autocomplete="off" />
+            <p class="tool-hint">or pick one below</p>
+            <div class="tool-chars" id="tool-chars"></div>
+        </section>
+
+        <section class="tool-result" id="tool-result" hidden>
+            <div class="tool-preview">
+                <span class="tool-preview-char" id="tool-preview-char">&ndash;</span>
+            </div>
+
+            <div class="tool-output-box">
+                <span class="tool-output-label">output</span>
+                <code class="tool-output-value" id="tool-output-value">--------</code>
+            </div>
+
+            <h3 class="tool-section-title">inputs</h3>
+            <div class="tool-grid">
+                <div class="bit" data-bit="1">
+                    <span class="bit-value">0</span>
+                    <span class="bit-label">1</span>
+                </div>
+                <div class="bit" data-bit="2">
+                    <span class="bit-value">0</span>
+                    <span class="bit-label">2</span>
+                </div>
+                <div class="bit" data-bit="3">
+                    <span class="bit-value">0</span>
+                    <span class="bit-label">3</span>
+                </div>
+                <div class="bit" data-bit="4">
+                    <span class="bit-value">0</span>
+                    <span class="bit-label">4</span>
+                </div>
+                <div class="bit" data-bit="5">
+                    <span class="bit-value">0</span>
+                    <span class="bit-label">5</span>
+                </div>
+                <div class="bit" data-bit="6">
+                    <span class="bit-value">0</span>
+                    <span class="bit-label">6</span>
+                </div>
+                <div class="bit bit-shift" data-bit="7">
+                    <span class="bit-value">0</span>
+                    <span class="bit-label">7</span>
+                </div>
+            </div>
+            <p class="tool-legend">1=i5 &middot; 2=i4 &middot; 3=i3 &middot; 4=i2 &middot; 5=i1 &middot; 6=i0 &middot; 7=shift</p>
+
+            <h3 class="tool-section-title">what to send</h3>
+            <p class="tool-formula-desc">format is <code>0{7}{1}{2}{3}{4}{5}{6}</code></p>
+            <div class="tool-formula-cells" id="tool-formula-cells"></div>
+        </section>
+
+        <footer class="footer">
+            <span>inspired by <a href="https://www.roblox.com/games/9527099245/Build-Logic" target="_blank" rel="noopener">build logic on roblox</a> by tomtom4500</span>
+            <span>&middot;</span>
+            <a href="/">home</a>
+            <span>&middot;</span>
+            <a href="/docs">/docs</a>
+        </footer>
+    </main>
+
+    <script>
+        const charInput = document.getElementById('char-input');
+        const charGrid = document.getElementById('tool-chars');
+        const result = document.getElementById('tool-result');
+        const formulaCells = document.getElementById('tool-formula-cells');
+
+        const FORMULA_ORDER = ['0', '7', '1', '2', '3', '4', '5', '6'];
+
+        async function loadChars() {
+            try {
+                const res = await fetch('/api/txtpanel');
+                const data = await res.json();
+                renderGrid(Object.keys(data));
+            } catch (e) {
+                charGrid.textContent = 'could not load characters lol';
+            }
+        }
+
+        function renderGrid(chars) {
+            charGrid.innerHTML = '';
+            for (const ch of chars) {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'char-btn';
+                btn.dataset.char = ch;
+                btn.textContent = ch === ' ' ? '␣' : ch;
+                btn.addEventListener('click', () => selectChar(ch));
+                charGrid.appendChild(btn);
+            }
+        }
+
+        function highlightSelected(ch) {
+            document.querySelectorAll('.char-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.char === ch);
+            });
+        }
+
+        async function selectChar(ch) {
+            highlightSelected(ch);
+            try {
+                const res = await fetch('/api/txtpanel/inputs/' + encodeURIComponent(ch));
+                if (!res.ok) {
+                    showNotFound(ch);
+                    return;
+                }
+                renderResult(await res.json());
+            } catch (e) {
+                showNotFound(ch);
+            }
+        }
+
+        function renderResult(data) {
+            result.hidden = false;
+            document.getElementById('tool-preview-char').textContent =
+                data.char === ' ' ? '␣' : data.char;
+            document.getElementById('tool-output-value').textContent = data.value;
+
+            document.querySelectorAll('.bit').forEach(el => {
+                const num = el.dataset.bit;
+                const val = data.inputs[num];
+                el.querySelector('.bit-value').textContent = val;
+                el.classList.toggle('bit-on', val === 1);
+            });
+
+            formulaCells.innerHTML = '';
+            for (const label of FORMULA_ORDER) {
+                const val = label === '0' ? 0 : data.inputs[label];
+                const cell = document.createElement('div');
+                cell.className = 'formula-cell' + (val === 1 ? ' formula-cell-on' : '');
+                cell.innerHTML = `<span class="formula-value">${val}</span><span class="formula-label">${label}</span>`;
+                formulaCells.appendChild(cell);
+            }
+        }
+
+        function showNotFound(ch) {
+            result.hidden = false;
+            document.getElementById('tool-preview-char').textContent =
+                ch === ' ' ? '␣' : ch;
+            document.getElementById('tool-output-value').textContent = '????????';
+            document.querySelectorAll('.bit').forEach(el => {
+                el.classList.remove('bit-on');
+                el.querySelector('.bit-value').textContent = '?';
+            });
+            formulaCells.innerHTML = '<p class="tool-error">not in the truth table</p>';
+        }
+
+        charInput.addEventListener('input', (e) => {
+            const chars = [...e.target.value];
+            if (chars.length === 1) {
+                selectChar(chars[0]);
+            }
+        });
+
+        loadChars();
+    </script>
+</body>
+  </html>
