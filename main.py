@@ -38,6 +38,12 @@ def homepage(request: Request):
 def health():
     return {"status": "ok"}
 
+# ---------- Text panel tool page ----------
+@app.get("/tool", response_class=HTMLResponse)
+def tool_page(request: Request):
+    context = {"request": request, "title": "text panel tool - eeky808"}
+    return templates.TemplateResponse(request, "tool.html", context)
+
 # ---------- APIs ----------
 api = APIRouter(prefix="/api")
 
@@ -62,7 +68,7 @@ def create_item(item: Item):
         "received": True,
     }
 
-# ---------- Alphabet lookup (built from truth table) ----------
+# ---------- Alphabet lookup ----------
 _ALPHABET: dict = {}
 for _shift, _i5, _i4, _i3, _i2, _i1, _i0, _char in TEXT_PANEL_TRUTH:
     if _char == "":
@@ -71,7 +77,8 @@ for _shift, _i5, _i4, _i3, _i2, _i1, _i0, _char in TEXT_PANEL_TRUTH:
         continue
     _ALPHABET[_char] = {"value": to_8bit(_shift, _i5, _i4, _i3, _i2, _i1, _i0)}
 
-_SPACE_VALUE = _ALPHABET[" "]["value"]
+_SPACE_VALUE = _ALPHABET[" "]["value"]      # 00111111 — actual space char
+_NOTHING_VALUE = "01111111"                  # idle — nothing being sent
 _NO_STORE = {"Cache-Control": "no-store"}
 
 # ---------- Text Panel endpoints ----------
@@ -104,7 +111,7 @@ def txtpanel_full():
 @api.get("/txtpanel/current", operation_id="txtpanel_current")
 def txtpanel_current():
     if not _ALPHABET:
-        return JSONResponse({"value": "00000000"}, headers=_NO_STORE)
+        return JSONResponse({"value": _NOTHING_VALUE}, headers=_NO_STORE)
     chars = list(_ALPHABET.keys())
     idx = int(time.time()) % len(chars)
     return JSONResponse(_ALPHABET[chars[idx]], headers=_NO_STORE)
@@ -117,23 +124,10 @@ def txtpanel_hello():
     ticks_per_sec = max(1, round(1 / _HELLO_INTERVAL))
     idx = int(time.time() * ticks_per_sec) % len(_HELLO_WORLD)
     entry = _ALPHABET.get(_HELLO_WORLD[idx])
-    return JSONResponse(entry or {"value": "00000000"}, headers=_NO_STORE)
-
-@api.get("/txtpanel/{char}", operation_id="txtpanel_char")
-def txtpanel_char(char: str):
-    if char in _ALPHABET:
-        return {"char": char, **_ALPHABET[char]}
-    raise HTTPException(status_code=404, detail=f"Character {char!r} not in truth table")
-
-# ---------- Text panel tool ----------
-@app.get("/tool", response_class=HTMLResponse)
-def tool_page(request: Request):
-    context = {"request": request, "title": "text panel tool - eeky808"}
-    return templates.TemplateResponse(request, "tool.html", context)
+    return JSONResponse(entry or {"value": _NOTHING_VALUE}, headers=_NO_STORE)
 
 @api.get("/txtpanel/inputs/{char}", operation_id="txtpanel_inputs")
 def txtpanel_inputs(char: str):
-    """Get the 7 input bits for a character in panel layout: 0{7}{1}{2}{3}{4}{5}{6}."""
     if char not in _ALPHABET:
         raise HTTPException(status_code=404, detail=f"Character {char!r} not in truth table")
     for shift, i5, i4, i3, i2, i1, i0, c in TEXT_PANEL_TRUTH:
@@ -149,16 +143,27 @@ def txtpanel_inputs(char: str):
             }
     raise HTTPException(status_code=404, detail=f"Character {char!r} not found")
 
+@api.get("/txtpanel/nothing", operation_id="txtpanel_nothing")
+def txtpanel_nothing():
+    """The idle signal — means 'nothing is being sent'."""
+    return JSONResponse({"value": _NOTHING_VALUE}, headers=_NO_STORE)
+
+# Dynamic catch-all LAST
+@api.get("/txtpanel/{char}", operation_id="txtpanel_char")
+def txtpanel_char(char: str):
+    if char in _ALPHABET:
+        return {"char": char, **_ALPHABET[char]}
+    raise HTTPException(status_code=404, detail=f"Character {char!r} not in truth table")
+
 # ---------- Typewriter ----------
 _TYPEWRITER_LOCK = threading.Lock()
 _TYPEWRITER_STATE = {
     "text": "type on the site lol",
     "pos": 0,
-    "padding": "        ",  # 8 trailing spaces before loop
+    "padding": "        ",   # 8 trailing spaces = pause before loop
 }
 
 def _char_to_value(ch: str) -> str:
-    """8-bit value for a char, fallback to space if not in truth table."""
     entry = _ALPHABET.get(ch)
     if entry is not None:
         return entry["value"]
@@ -169,27 +174,18 @@ class TypewriterBody(BaseModel):
 
 @api.post("/typewriter", operation_id="typewriter_set")
 def typewriter_set(body: TypewriterBody):
-    """Set text to be typed on the panel. Resets to start."""
     text = body.text[:500]
     with _TYPEWRITER_LOCK:
         _TYPEWRITER_STATE["text"] = text
         _TYPEWRITER_STATE["pos"] = 0
-    return JSONResponse(
-        {"status": "ok", "length": len(text)},
-        headers=_NO_STORE,
-    )
+    return JSONResponse({"status": "ok", "length": len(text)}, headers=_NO_STORE)
 
 @api.get("/typewriter/current", operation_id="typewriter_current")
 def typewriter_current():
-    """
-    Return next character's 8-bit value, advance one step.
-    Each GET = one character written. Speed = panel poll rate
-    (10 GETs/sec = 10 chars/sec, etc.).
-    """
     with _TYPEWRITER_LOCK:
         text = _TYPEWRITER_STATE["text"]
         if not text:
-            return JSONResponse({"value": _SPACE_VALUE}, headers=_NO_STORE)
+            return JSONResponse({"value": _NOTHING_VALUE}, headers=_NO_STORE)
         buffer = text + _TYPEWRITER_STATE["padding"]
         pos = _TYPEWRITER_STATE["pos"]
         ch = buffer[pos]
@@ -209,6 +205,10 @@ def typewriter_status():
         "pos": pos,
         "buffer_length": len(buffer),
         "current_char": buffer[pos] if text else None,
+        "special": {
+            "space": _SPACE_VALUE,
+            "nothing": _NOTHING_VALUE,
+        },
     }, headers=_NO_STORE)
 
 @api.post("/typewriter/clear", operation_id="typewriter_clear")
