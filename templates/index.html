@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{{ title }}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+    <div class="bg-orb bg-orb-1"></div>
+    <div class="bg-orb bg-orb-2"></div>
+    <div class="bg-orb bg-orb-3"></div>
+
+    <main class="container">
+        <header class="hero">
+            <div class="badge">yo its live i think</div>
+            <h1 class="hero-title">{{ heading }}</h1>
+            <p class="hero-tagline">{{ tagline }}</p>
+            <p class="hero-intro">{{ intro }}</p>
+            <div class="hero-actions">
+                <a class="btn btn-primary" href="/tool">text panel tool -&gt;</a>
+                <a class="btn btn-ghost" href="/docs">see the api stuff -&gt;</a>
+            </div>
+        </header>
+
+        <section class="typewriter">
+            <h2 class="typewriter-title">typewriter</h2>
+            <p class="typewriter-desc">type something and it shows up on the panel one letter at a time.</p>
+            <form class="typewriter-form" id="typewriter-form">
+                <input type="text" id="typewriter-input" class="typewriter-input" maxlength="499" placeholder="hello world..." autocomplete="off" />
+                <button type="submit" class="btn btn-primary">send -&gt;</button>
+            </form>
+            <p class="typewriter-status" id="typewriter-status">press enter to send</p>
+
+            <div class="panel-live">
+                <p class="panel-live-label">live panel view</p>
+                <div class="panel-live-display">
+                    <span class="panel-live-char" id="panel-live-char">&ndash;</span>
+                    <span class="panel-live-value" id="panel-live-value">--------</span>
+                </div>
+                <p class="panel-live-state" id="panel-live-state">connecting...</p>
+                <p class="panel-live-meta" id="panel-live-meta"></p>
+            </div>
+        </section>
+
+        <section class="grid">
+            <a class="card" href="/tool">
+                <h2 class="card-title">text panel tool</h2>
+                <p class="card-desc">pick a character, get its 7 inputs and 8-bit output.</p>
+                <span class="card-path">/tool</span>
+            </a>
+            <a class="card" href="/truthtable">
+                <h2 class="card-title">truth table</h2>
+                <p class="card-desc">all 128 rows, formatted and searchable.</p>
+                <span class="card-path">/truthtable</span>
+            </a>
+            <a class="card" href="/image">
+                <h2 class="card-title">image panel</h2>
+                <p class="card-desc">draw or upload an image, dither it to 16x16 or 32x32.</p>
+                <span class="card-path">/image</span>
+            </a>
+            <a class="card" href="/api/txtpanel">
+                <h2 class="card-title">all the txt panel letters</h2>
+                <p class="card-desc">every character with its 8 bit code.</p>
+                <span class="card-path">/api/txtpanel</span>
+            </a>
+            <a class="card" href="/api/txtpanel/full">
+                <h2 class="card-title">full raw table</h2>
+                <p class="card-desc">all 128 rows with every input bit.</p>
+                <span class="card-path">/api/txtpanel/full</span>
+            </a>
+            <a class="card" href="/api/txtpanel/nothing">
+                <h2 class="card-title">nothing</h2>
+                <p class="card-desc">idle signal. clock stays off.</p>
+                <span class="card-path">/api/txtpanel/nothing</span>
+            </a>
+            <a class="card" href="/api/typewriter/current">
+                <h2 class="card-title">typewriter</h2>
+                <p class="card-desc">next letter the panel should show.</p>
+                <span class="card-path">/api/typewriter/current</span>
+            </a>
+            <a class="card" href="/api/typewriter/status">
+                <h2 class="card-title">whats on the panel</h2>
+                <p class="card-desc">last char the panel received.</p>
+                <span class="card-path">/api/typewriter/status</span>
+            </a>
+            <a class="card" href="/api/panel/current">
+                <h2 class="card-title">image panel (16x16)</h2>
+                <p class="card-desc">next image pixel per GET.</p>
+                <span class="card-path">/api/panel/current</span>
+            </a>
+        </section>
+
+        <footer class="footer">
+            <span>inspired by <a href="https://www.roblox.com/games/9527099245/Build-Logic" target="_blank" rel="noopener">build logic on roblox</a> by tomtom4500</span>
+            <span>&middot;</span>
+            <a href="/docs">/docs</a>
+        </footer>
+    </main>
+
+    <script src="/static/main.js" defer></script>
+</body>
+                                                     </html>
