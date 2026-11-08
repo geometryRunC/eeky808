@@ -1,5 +1,6 @@
 from pathlib import Path
 import time
+import threading
 
 from fastapi import FastAPI, APIRouter, Request, HTTPException
 from fastapi.responses import HTMLResponse, JSONResponse
@@ -7,6 +8,8 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 from typing import Optional
+
+from truthtable import TEXT_PANEL_TRUTH, to_8bit
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -30,7 +33,7 @@ def homepage(request: Request):
         "intro": "made this cuz im obsessed with build logic on roblox lol",
     }
     return templates.TemplateResponse(request, "index.html", context)
-    
+
 @app.get("/health")
 def health():
     return {"status": "ok"}
@@ -68,150 +71,14 @@ def create_item(item: Item):
         "received": True,
     }
 
-# ---------- Text Panel Truth Table (7 inputs → 8-bit output) ----------
-_TEXT_PANEL_TRUTH = [
-    (0, 0, 0, 0, 0, 0, 0, ""),
-    (0, 0, 0, 0, 0, 0, 1, "a"),
-    (0, 0, 0, 0, 0, 1, 0, "b"),
-    (0, 0, 0, 0, 0, 1, 1, "c"),
-    (0, 0, 0, 0, 1, 0, 0, "d"),
-    (0, 0, 0, 0, 1, 0, 1, "e"),
-    (0, 0, 0, 0, 1, 1, 0, "f"),
-    (0, 0, 0, 0, 1, 1, 1, "g"),
-    (0, 0, 0, 1, 0, 0, 0, "h"),
-    (0, 0, 0, 1, 0, 0, 1, "i"),
-    (0, 0, 0, 1, 0, 1, 0, "j"),
-    (0, 0, 0, 1, 0, 1, 1, "k"),
-    (0, 0, 0, 1, 1, 0, 0, "l"),
-    (0, 0, 0, 1, 1, 0, 1, "m"),
-    (0, 0, 0, 1, 1, 1, 0, "n"),
-    (0, 0, 0, 1, 1, 1, 1, "o"),
-    (0, 0, 1, 0, 0, 0, 0, "p"),
-    (0, 0, 1, 0, 0, 0, 1, "q"),
-    (0, 0, 1, 0, 0, 1, 0, "r"),
-    (0, 0, 1, 0, 0, 1, 1, "s"),
-    (0, 0, 1, 0, 1, 0, 0, "t"),
-    (0, 0, 1, 0, 1, 0, 1, "u"),
-    (0, 0, 1, 0, 1, 1, 0, "v"),
-    (0, 0, 1, 0, 1, 1, 1, "w"),
-    (0, 0, 1, 1, 0, 0, 0, "x"),
-    (0, 0, 1, 1, 0, 0, 1, "y"),
-    (0, 0, 1, 1, 0, 1, 0, "z"),
-    (0, 0, 1, 1, 0, 1, 1, "1"),
-    (0, 0, 1, 1, 1, 0, 0, "2"),
-    (0, 0, 1, 1, 1, 0, 1, "3"),
-    (0, 0, 1, 1, 1, 1, 0, "4"),
-    (0, 0, 1, 1, 1, 1, 1, "5"),
-    (0, 1, 0, 0, 0, 0, 0, "6"),
-    (0, 1, 0, 0, 0, 0, 1, "7"),
-    (0, 1, 0, 0, 0, 1, 0, "8"),
-    (0, 1, 0, 0, 0, 1, 1, "9"),
-    (0, 1, 0, 0, 1, 0, 0, "0"),
-    (0, 1, 0, 0, 1, 0, 1, "-"),
-    (0, 1, 0, 0, 1, 1, 0, "="),
-    (0, 1, 0, 0, 1, 1, 1, "."),
-    (0, 1, 0, 1, 0, 0, 0, ","),
-    (0, 1, 0, 1, 0, 0, 1, ";"),
-    (0, 1, 0, 1, 0, 1, 0, "/"),
-    (0, 1, 0, 1, 0, 1, 1, "à"),
-    (0, 1, 0, 1, 1, 0, 0, "â"),
-    (0, 1, 0, 1, 1, 0, 1, "ç"),
-    (0, 1, 0, 1, 1, 1, 0, "è"),
-    (0, 1, 0, 1, 1, 1, 1, "é"),
-    (0, 1, 1, 0, 0, 0, 0, "ê"),
-    (0, 1, 1, 0, 0, 0, 1, "î"),
-    (0, 1, 1, 0, 0, 1, 0, "ï"),
-    (0, 1, 1, 0, 0, 1, 1, "û"),
-    (0, 1, 1, 0, 1, 0, 0, ""),
-    (0, 1, 1, 0, 1, 0, 1, "["),
-    (0, 1, 1, 0, 1, 1, 0, "]"),
-    (0, 1, 1, 0, 1, 1, 1, '"'),
-    (0, 1, 1, 1, 0, 0, 0, "🟧"),
-    (0, 1, 1, 1, 0, 0, 1, "🟨"),
-    (0, 1, 1, 1, 0, 1, 0, "🟩"),
-    (0, 1, 1, 1, 0, 1, 1, "🟦"),
-    (0, 1, 1, 1, 1, 0, 0, "🟪"),
-    (0, 1, 1, 1, 1, 0, 1, "⬜"),
-    (0, 1, 1, 1, 1, 1, 0, "▶"),
-    (0, 1, 1, 1, 1, 1, 1, " "),
-    (1, 0, 0, 0, 0, 0, 0, " "),
-    (1, 0, 0, 0, 0, 0, 1, "A"),
-    (1, 0, 0, 0, 0, 1, 0, "B"),
-    (1, 0, 0, 0, 0, 1, 1, "C"),
-    (1, 0, 0, 0, 1, 0, 0, "D"),
-    (1, 0, 0, 0, 1, 0, 1, "E"),
-    (1, 0, 0, 0, 1, 1, 0, "F"),
-    (1, 0, 0, 0, 1, 1, 1, "G"),
-    (1, 0, 0, 1, 0, 0, 0, "H"),
-    (1, 0, 0, 1, 0, 0, 1, "I"),
-    (1, 0, 0, 1, 0, 1, 0, "J"),
-    (1, 0, 0, 1, 0, 1, 1, "K"),
-    (1, 0, 0, 1, 1, 0, 0, "L"),
-    (1, 0, 0, 1, 1, 0, 1, "M"),
-    (1, 0, 0, 1, 1, 1, 0, "N"),
-    (1, 0, 0, 1, 1, 1, 1, "O"),
-    (1, 0, 1, 0, 0, 0, 0, "P"),
-    (1, 0, 1, 0, 0, 0, 1, "Q"),
-    (1, 0, 1, 0, 0, 1, 0, "R"),
-    (1, 0, 1, 0, 0, 1, 1, "S"),
-    (1, 0, 1, 0, 1, 0, 0, "T"),
-    (1, 0, 1, 0, 1, 0, 1, "U"),
-    (1, 0, 1, 0, 1, 1, 0, "V"),
-    (1, 0, 1, 0, 1, 1, 1, "W"),
-    (1, 0, 1, 1, 0, 0, 0, "X"),
-    (1, 0, 1, 1, 0, 0, 1, "Y"),
-    (1, 0, 1, 1, 0, 1, 0, "Z"),
-    (1, 0, 1, 1, 0, 1, 1, "!"),
-    (1, 0, 1, 1, 1, 0, 0, "@"),
-    (1, 0, 1, 1, 1, 0, 1, "#"),
-    (1, 0, 1, 1, 1, 1, 0, "$"),
-    (1, 0, 1, 1, 1, 1, 1, "%"),
-    (1, 1, 0, 0, 0, 0, 0, "?"),
-    (1, 1, 0, 0, 0, 0, 1, "&"),
-    (1, 1, 0, 0, 0, 1, 0, "*"),
-    (1, 1, 0, 0, 0, 1, 1, "("),
-    (1, 1, 0, 0, 1, 0, 0, ")"),
-    (1, 1, 0, 0, 1, 0, 1, "_"),
-    (1, 1, 0, 0, 1, 1, 0, "+"),
-    (1, 1, 0, 0, 1, 1, 1, "."),
-    (1, 1, 0, 1, 0, 0, 0, "'"),
-    (1, 1, 0, 1, 0, 0, 1, ":"),
-    (1, 1, 0, 1, 0, 1, 0, "~"),
-    (1, 1, 0, 1, 0, 1, 1, "À"),
-    (1, 1, 0, 1, 1, 0, 0, "Â"),
-    (1, 1, 0, 1, 1, 0, 1, "Ç"),
-    (1, 1, 0, 1, 1, 1, 0, "È"),
-    (1, 1, 0, 1, 1, 1, 1, "É"),
-    (1, 1, 1, 0, 0, 0, 0, "Ê"),
-    (1, 1, 1, 0, 0, 0, 1, "Ì"),
-    (1, 1, 1, 0, 0, 1, 0, "Ï"),
-    (1, 1, 1, 0, 0, 1, 1, "Û"),
-    (1, 1, 1, 0, 1, 0, 0, "¦"),
-    (1, 1, 1, 0, 1, 0, 1, "{"),
-    (1, 1, 1, 0, 1, 1, 0, "}"),
-    (1, 1, 1, 0, 1, 1, 1, "^"),
-    (1, 1, 1, 1, 0, 0, 0, ">"),
-    (1, 1, 1, 1, 0, 0, 1, "<"),
-    (1, 1, 1, 1, 0, 1, 0, "█"),
-    (1, 1, 1, 1, 0, 1, 1, "➡"),
-    (1, 1, 1, 1, 1, 0, 0, "⬅"),
-    (1, 1, 1, 1, 1, 0, 1, "⬆"),
-    (1, 1, 1, 1, 1, 1, 0, "⬇"),
-    (1, 1, 1, 1, 1, 1, 1, " "),
-]
-
-def _to_8bit(shift, i5, i4, i3, i2, i1, i0) -> str:
-    """7 input bits → 8-bit binary string (leading 0 prepended)."""
-    return f"0{shift}{i5}{i4}{i3}{i2}{i1}{i0}"
-
-# Build the lookup map once at import time (first occurrence wins)
+# ---------- Alphabet lookup (built from truth table) ----------
 _ALPHABET: dict = {}
-for _shift, _i5, _i4, _i3, _i2, _i1, _i0, _char in _TEXT_PANEL_TRUTH:
+for _shift, _i5, _i4, _i3, _i2, _i1, _i0, _char in TEXT_PANEL_TRUTH:
     if _char == "":
         continue
     if _char in _ALPHABET:
         continue
-    _ALPHABET[_char] = {"value": _to_8bit(_shift, _i5, _i4, _i3, _i2, _i1, _i0)}
+    _ALPHABET[_char] = {"value": to_8bit(_shift, _i5, _i4, _i3, _i2, _i1, _i0)}
 
 _NO_STORE = {"Cache-Control": "no-store"}
 
@@ -240,9 +107,9 @@ def txtpanel_full():
                 "shift": shift, "i5": i5, "i4": i4, "i3": i3,
                 "i2": i2, "i1": i1, "i0": i0,
                 "char": char,
-                "value": _to_8bit(shift, i5, i4, i3, i2, i1, i0),
+                "value": to_8bit(shift, i5, i4, i3, i2, i1, i0),
             }
-            for shift, i5, i4, i3, i2, i1, i0, char in _TEXT_PANEL_TRUTH
+            for shift, i5, i4, i3, i2, i1, i0, char in TEXT_PANEL_TRUTH
         ],
         headers=_NO_STORE,
     )
@@ -256,9 +123,9 @@ def txtpanel_current():
     idx = int(time.time()) % len(chars)
     return JSONResponse(_ALPHABET[chars[idx]], headers=_NO_STORE)
 
-# ---------- "Hello World!" cycler (faster than /current) ----------
-_HELLO_WORLD = "Hello World! "   # trailing space = pause before looping
-_HELLO_INTERVAL = 0.5  # seconds per character — set to 0.1 for faster
+# ---------- "Hello World!" cycler ----------
+_HELLO_WORLD = "Hello World! "
+_HELLO_INTERVAL = 0.5
 
 @api.get("/txtpanel/hello", operation_id="txtpanel_hello")
 def txtpanel_hello():
@@ -278,3 +145,54 @@ def txtpanel_char(char: str):
 
 # ---------- Mount router AFTER all routes are defined ----------
 app.include_router(api)
+
+# ---------- Panel: Bad Apple 16×16 ----------
+_BADAPPLE_BIN = BASE_DIR / "badapple16.bin"
+
+def _load_badapple_bin() -> list[str]:
+    """Load 256-bit frames from badapple16.bin. Fails fast if missing."""
+    if not _BADAPPLE_BIN.is_file():
+        raise RuntimeError(
+            f"badapple16.bin not found at {_BADAPPLE_BIN}. "
+            f"Run gen_badapple.py to create it, then commit the file."
+        )
+    with open(_BADAPPLE_BIN) as f:
+        frames = [ln.strip() for ln in f if len(ln.strip()) == 256]
+    if not frames:
+        raise RuntimeError(
+            f"{_BADAPPLE_BIN} exists but contains no valid 256-bit frame lines."
+        )
+    print(f"[badapple] loaded {len(frames)} frames from {_BADAPPLE_BIN.name}")
+    return frames
+
+_BADAPPLE_FRAMES = _load_badapple_bin()
+
+_BADAPPLE_COUNTER = 0
+_BADAPPLE_COUNTER_LOCK = threading.Lock()
+
+@app.get("/panel/badapple16", operation_id="panel_badapple16")
+def panel_badapple16():
+    """
+    Bad Apple!! at 16×16.
+    Each GET advances to the NEXT frame (counter-based, not time-based).
+    First GET → frame 0, second → frame 1, …, wraps around automatically.
+    Returns 256 values, each 8 bits: "0000000{pixel}" (7 padding + 1 color bit).
+    """
+    global _BADAPPLE_COUNTER
+    with _BADAPPLE_COUNTER_LOCK:
+        idx = _BADAPPLE_COUNTER % len(_BADAPPLE_FRAMES)
+        _BADAPPLE_COUNTER += 1
+
+    bits = _BADAPPLE_FRAMES[idx]
+    return JSONResponse(
+        [{"value": f"0000000{b}"} for b in bits],
+        headers=_NO_STORE,
+    )
+
+@app.post("/panel/badapple16/reset", operation_id="panel_badapple16_reset")
+def panel_badapple16_reset():
+    """Reset the frame counter back to 0 (next GET returns frame 0)."""
+    global _BADAPPLE_COUNTER
+    with _BADAPPLE_COUNTER_LOCK:
+        _BADAPPLE_COUNTER = 0
+    return {"status": "reset", "next_frame": 0}
