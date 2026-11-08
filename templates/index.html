@@ -34,13 +34,23 @@
                     type="text" 
                     id="typewriter-input" 
                     class="typewriter-input"
-                    maxlength="500" 
+                    maxlength="499" 
                     placeholder="hello world..." 
                     autocomplete="off" 
                 />
                 <button type="submit" class="btn btn-primary">send -&gt;</button>
             </form>
             <p class="typewriter-status" id="typewriter-status">press enter to send</p>
+
+            <div class="panel-live" id="panel-live">
+                <p class="panel-live-label">live panel view</p>
+                <div class="panel-live-display">
+                    <span class="panel-live-char" id="panel-live-char">&ndash;</span>
+                    <span class="panel-live-value" id="panel-live-value">--------</span>
+                </div>
+                <p class="panel-live-state" id="panel-live-state">connecting...</p>
+                <p class="panel-live-meta" id="panel-live-meta"></p>
+            </div>
         </section>
 
         <section class="grid">
@@ -88,19 +98,19 @@
 
             <a class="card" href="/api/txtpanel/nothing">
                 <h2 class="card-title">nothing</h2>
-                <p class="card-desc">the idle signal. <code>01111111</code> means nothin's being sent.</p>
+                <p class="card-desc">idle signal. <code>01111111</code> means nothin's being sent — clock stays off.</p>
                 <span class="card-path">/api/txtpanel/nothing</span>
             </a>
 
             <a class="card" href="/api/typewriter/current">
                 <h2 class="card-title">typewriter</h2>
-                <p class="card-desc">next letter the panel should show. advances each GET.</p>
+                <p class="card-desc">next letter the panel should show. advances each GET. one space before new text.</p>
                 <span class="card-path">/api/typewriter/current</span>
             </a>
 
             <a class="card" href="/api/typewriter/status">
                 <h2 class="card-title">whats on the panel</h2>
-                <p class="card-desc">current text, cursor position, next character. peek at the state.</p>
+                <p class="card-desc">text, cursor, state (idle / space-gap / typing). what the panel sees right now.</p>
                 <span class="card-path">/api/typewriter/status</span>
             </a>
         </section>
@@ -115,6 +125,7 @@
     </main>
 
     <script>
+        // form submit
         document.getElementById('typewriter-form').addEventListener('submit', async (e) => {
             e.preventDefault();
             const input = document.getElementById('typewriter-input');
@@ -134,6 +145,7 @@
                 if (res.ok) {
                     status.textContent = '> sent! ' + text.length + ' chars heading to the panel';
                     input.value = '';
+                    updatePanel();
                 } else {
                     status.textContent = '> oops server said no';
                 }
@@ -141,6 +153,61 @@
                 status.textContent = '> network error lol';
             }
         });
+
+        // live panel view
+        const elChar = document.getElementById('panel-live-char');
+        const elValue = document.getElementById('panel-live-value');
+        const elState = document.getElementById('panel-live-state');
+        const elMeta = document.getElementById('panel-live-meta');
+
+        const STATE_LABELS = {
+            'idle':      'idle · nothing being sent · clock off',
+            'space-gap': 'sending one space before new text',
+            'typing':    'typing',
+        };
+
+        async function updatePanel() {
+            try {
+                const res = await fetch('/api/typewriter/status');
+                const data = await res.json();
+
+                // character display
+                let shown;
+                if (data.state === 'idle') {
+                    shown = '–';
+                } else if (data.current_char === ' ') {
+                    shown = '\u2423';   // ␣
+                } else if (data.current_char) {
+                    shown = data.current_char;
+                } else {
+                    shown = '–';
+                }
+                elChar.textContent = shown;
+                elChar.className = 'panel-live-char state-' + data.state;
+
+                // 8-bit value
+                elValue.textContent = data.current_value;
+                elValue.className = 'panel-live-value state-' + data.state;
+
+                // state label
+                elState.textContent = STATE_LABELS[data.state] || data.state;
+
+                // meta line (position, text)
+                if (data.state === 'idle') {
+                    elMeta.textContent = '';
+                } else if (data.state === 'space-gap') {
+                    elMeta.textContent = 'next: ' + data.text.slice(0, 20) + (data.text.length > 20 ? '…' : '');
+                } else {
+                    elMeta.textContent = 'pos ' + data.pos + ' / ' + data.buffer_length +
+                        ' · "' + data.text.slice(0, 20) + (data.text.length > 20 ? '…' : '') + '"';
+                }
+            } catch (err) {
+                elState.textContent = '> lost connection to server';
+            }
+        }
+
+        updatePanel();
+        setInterval(updatePanel, 500);
     </script>
 </body>
 </html>
