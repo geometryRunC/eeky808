@@ -84,7 +84,7 @@ for _shift, _i5, _i4, _i3, _i2, _i1, _i0, _char in TEXT_PANEL_TRUTH:
     _ALPHABET[_char] = {"value": to_8bit(_shift, _i5, _i4, _i3, _i2, _i1, _i0)}
 
 _SPACE_VALUE = _ALPHABET[" "]["value"]      # 00111111 — actual space char
-_NOTHING_VALUE = "01111111"                  # idle — nothing being sent
+_NOTHING_VALUE = "10000000"                  # idle — MSB=1 is unique to "nothing"
 _NO_STORE = {"Cache-Control": "no-store"}
 
 # ---------- Text Panel endpoints ----------
@@ -151,7 +151,7 @@ def txtpanel_inputs(char: str):
 
 @api.get("/txtpanel/nothing", operation_id="txtpanel_nothing")
 def txtpanel_nothing():
-    """The idle signal — means 'nothing is being sent'."""
+    """The idle signal — means 'nothing is being sent'. MSB=1 so a single NOT gate detects it."""
     return JSONResponse({"value": _NOTHING_VALUE}, headers=_NO_STORE)
 
 # Dynamic catch-all LAST
@@ -183,11 +183,9 @@ class TypewriterBody(BaseModel):
 def typewriter_set(body: TypewriterBody):
     text = body.text[:499]
     with _TYPEWRITER_LOCK:
-        # was the panel idle before this? (empty text = idle)
         was_idle = not _TYPEWRITER_STATE["text"]
         _TYPEWRITER_STATE["text"] = text
         _TYPEWRITER_STATE["pos"] = 0
-        # only need a gap if we're waking up from idle into real text
         _TYPEWRITER_STATE["pending_space"] = was_idle and bool(text)
     return JSONResponse({"status": "ok", "length": len(text)}, headers=_NO_STORE)
 
@@ -197,7 +195,6 @@ def typewriter_current():
         text = _TYPEWRITER_STATE["text"]
         if not text:
             return JSONResponse({"value": _NOTHING_VALUE}, headers=_NO_STORE)
-        # one space after idle before new text starts, so messages don't run together
         if _TYPEWRITER_STATE["pending_space"]:
             _TYPEWRITER_STATE["pending_space"] = False
             return JSONResponse({"value": _SPACE_VALUE}, headers=_NO_STORE)
@@ -214,13 +211,28 @@ def typewriter_status():
         pos = _TYPEWRITER_STATE["pos"]
         padding = _TYPEWRITER_STATE["padding"]
         pending = _TYPEWRITER_STATE["pending_space"]
+
     buffer = text + padding
+    current_char = buffer[pos] if text else None
+
+    if not text:
+        current_value = _NOTHING_VALUE
+        state = "idle"
+    elif pending:
+        current_value = _SPACE_VALUE
+        state = "space-gap"
+    else:
+        current_value = _char_to_value(current_char) if current_char else _SPACE_VALUE
+        state = "typing"
+
     return JSONResponse({
         "text": text,
         "length": len(text),
         "pos": pos,
         "buffer_length": len(buffer),
-        "current_char": buffer[pos] if text else None,
+        "current_char": current_char,
+        "current_value": current_value,
+        "state": state,
         "pending_space": pending,
         "special": {
             "space": _SPACE_VALUE,
