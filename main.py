@@ -44,6 +44,12 @@ def tool_page(request: Request):
     context = {"request": request, "title": "text panel tool - eeky808"}
     return templates.TemplateResponse(request, "tool.html", context)
 
+# ---------- Truth table page ----------
+@app.get("/truthtable", response_class=HTMLResponse)
+def truthtable_page(request: Request):
+    context = {"request": request, "title": "truth table - eeky808"}
+    return templates.TemplateResponse(request, "truthtable.html", context)
+
 # ---------- APIs ----------
 api = APIRouter(prefix="/api")
 
