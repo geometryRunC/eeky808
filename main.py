@@ -15,7 +15,6 @@ BASE_DIR = Path(__file__).resolve().parent
 
 app = FastAPI(title="eeky808")
 
-# ---------- Static files & templates ----------
 static_dir = BASE_DIR / "static"
 if static_dir.is_dir():
     app.mount("/static", StaticFiles(directory=static_dir), name="static")
@@ -38,13 +37,11 @@ def homepage(request: Request):
 def health():
     return {"status": "ok"}
 
-# ---------- Text panel tool page ----------
 @app.get("/tool", response_class=HTMLResponse)
 def tool_page(request: Request):
     context = {"request": request, "title": "text panel tool - eeky808"}
     return templates.TemplateResponse(request, "tool.html", context)
 
-# ---------- Truth table page ----------
 @app.get("/truthtable", response_class=HTMLResponse)
 def truthtable_page(request: Request):
     context = {"request": request, "title": "truth table - eeky808"}
@@ -68,11 +65,7 @@ def read_item(item_id: int, q: Optional[str] = None):
 
 @api.post("/items/")
 def create_item(item: Item):
-    return {
-        "item_name": item.name,
-        "item_price": item.price,
-        "received": True,
-    }
+    return {"item_name": item.name, "item_price": item.price, "received": True}
 
 # ---------- Alphabet lookup ----------
 _ALPHABET: dict = {}
@@ -83,8 +76,8 @@ for _shift, _i5, _i4, _i3, _i2, _i1, _i0, _char in TEXT_PANEL_TRUTH:
         continue
     _ALPHABET[_char] = {"value": to_8bit(_shift, _i5, _i4, _i3, _i2, _i1, _i0)}
 
-_SPACE_VALUE = _ALPHABET[" "]["value"]      # 00111111 — actual space char
-_NOTHING_VALUE = "10000000"                  # idle — MSB=1 is unique to "nothing"
+_SPACE_VALUE = _ALPHABET[" "]["value"]      # 00111111
+_NOTHING_VALUE = "10000000"                  # idle — MSB=1
 _NO_STORE = {"Cache-Control": "no-store"}
 
 # ---------- Text Panel endpoints ----------
@@ -94,10 +87,7 @@ def txtpanel_all():
 
 @api.get("/txtpanel/table", operation_id="txtpanel_table")
 def txtpanel_table():
-    return JSONResponse(
-        [{"value": obj["value"]} for obj in _ALPHABET.values()],
-        headers=_NO_STORE,
-    )
+    return JSONResponse([{"value": o["value"]} for o in _ALPHABET.values()], headers=_NO_STORE)
 
 @api.get("/txtpanel/full", operation_id="txtpanel_full")
 def txtpanel_full():
@@ -106,8 +96,7 @@ def txtpanel_full():
             {
                 "shift": shift, "i5": i5, "i4": i4, "i3": i3,
                 "i2": i2, "i1": i1, "i0": i0,
-                "char": char,
-                "value": to_8bit(shift, i5, i4, i3, i2, i1, i0),
+                "char": char, "value": to_8bit(shift, i5, i4, i3, i2, i1, i0),
             }
             for shift, i5, i4, i3, i2, i1, i0, char in TEXT_PANEL_TRUTH
         ],
@@ -119,8 +108,7 @@ def txtpanel_current():
     if not _ALPHABET:
         return JSONResponse({"value": _NOTHING_VALUE}, headers=_NO_STORE)
     chars = list(_ALPHABET.keys())
-    idx = int(time.time()) % len(chars)
-    return JSONResponse(_ALPHABET[chars[idx]], headers=_NO_STORE)
+    return JSONResponse(_ALPHABET[chars[int(time.time()) % len(chars)]], headers=_NO_STORE)
 
 _HELLO_WORLD = "Hello World! "
 _HELLO_INTERVAL = 0.5
@@ -141,20 +129,14 @@ def txtpanel_inputs(char: str):
             return {
                 "char": char,
                 "value": to_8bit(shift, i5, i4, i3, i2, i1, i0),
-                "inputs": {
-                    "1": i5, "2": i4, "3": i3,
-                    "4": i2, "5": i1, "6": i0,
-                    "7": shift,
-                },
+                "inputs": {"1": i5, "2": i4, "3": i3, "4": i2, "5": i1, "6": i0, "7": shift},
             }
     raise HTTPException(status_code=404, detail=f"Character {char!r} not found")
 
 @api.get("/txtpanel/nothing", operation_id="txtpanel_nothing")
 def txtpanel_nothing():
-    """The idle signal — MSB=1 so a single NOT gate detects it."""
     return JSONResponse({"value": _NOTHING_VALUE}, headers=_NO_STORE)
 
-# Dynamic catch-all LAST
 @api.get("/txtpanel/{char}", operation_id="txtpanel_char")
 def txtpanel_char(char: str):
     if char in _ALPHABET:
@@ -166,18 +148,18 @@ _TYPEWRITER_LOCK = threading.Lock()
 _TYPEWRITER_STATE = {
     "text": "type on the site lol",
     "pos": 0,
-    "padding": "        ",       # 8 trailing spaces = pause before loop
-    "pending_space": False,       # when True, send one space before next char
-    "last_served_value": None,    # what the panel last received
+    "padding": "",
+    "pending_space": False,
+    "last_served_value": None,
     "last_served_char": None,
     "last_served_at": 0.0,
+    "last_visible_char": None,     # last non-idle char — panel holds this on screen
+    "last_visible_value": None,
 }
 
 def _char_to_value(ch: str) -> str:
     entry = _ALPHABET.get(ch)
-    if entry is not None:
-        return entry["value"]
-    return _SPACE_VALUE
+    return entry["value"] if entry else _SPACE_VALUE
 
 class TypewriterBody(BaseModel):
     text: str
@@ -199,18 +181,25 @@ def typewriter_current():
         if not text:
             value = _NOTHING_VALUE
             char = None
+            # do NOT touch last_visible_* — panel still shows the previous char
         elif _TYPEWRITER_STATE["pending_space"]:
             _TYPEWRITER_STATE["pending_space"] = False
             value = _SPACE_VALUE
             char = " "
+            _TYPEWRITER_STATE["last_visible_char"] = char
+            _TYPEWRITER_STATE["last_visible_value"] = value
         else:
             buffer = text + _TYPEWRITER_STATE["padding"]
             pos = _TYPEWRITER_STATE["pos"]
             char = buffer[pos]
             value = _char_to_value(char)
-            _TYPEWRITER_STATE["pos"] = (pos + 1) % len(buffer)
+            _TYPEWRITER_STATE["last_visible_char"] = char
+            _TYPEWRITER_STATE["last_visible_value"] = value
+            _TYPEWRITER_STATE["pos"] = pos + 1
+            if _TYPEWRITER_STATE["pos"] >= len(buffer):
+                _TYPEWRITER_STATE["text"] = ""
+                _TYPEWRITER_STATE["pos"] = 0
 
-        # remember exactly what we just handed out
         _TYPEWRITER_STATE["last_served_value"] = value
         _TYPEWRITER_STATE["last_served_char"] = char
         _TYPEWRITER_STATE["last_served_at"] = time.time()
@@ -222,11 +211,10 @@ def typewriter_status():
     with _TYPEWRITER_LOCK:
         text = _TYPEWRITER_STATE["text"]
         pos = _TYPEWRITER_STATE["pos"]
-        padding = _TYPEWRITER_STATE["padding"]
         pending = _TYPEWRITER_STATE["pending_space"]
-        last_value = _TYPEWRITER_STATE["last_served_value"]
-        last_char = _TYPEWRITER_STATE["last_served_char"]
         last_at = _TYPEWRITER_STATE["last_served_at"]
+        visible_char = _TYPEWRITER_STATE["last_visible_char"]
+        visible_value = _TYPEWRITER_STATE["last_visible_value"]
 
     now = time.time()
     panel_active = last_at > 0 and (now - last_at) < 2.0
@@ -236,16 +224,13 @@ def typewriter_status():
         "text": text,
         "length": len(text),
         "pos": pos,
-        "buffer_length": len(text) + len(padding),
+        "buffer_length": len(text),
         "panel_active": panel_active,
         "since_last_served": since_last,
-        "panel_char": last_char,
-        "panel_value": last_value,
+        "panel_char": visible_char,
+        "panel_value": visible_value,
         "pending_space": pending,
-        "special": {
-            "space": _SPACE_VALUE,
-            "nothing": _NOTHING_VALUE,
-        },
+        "special": {"space": _SPACE_VALUE, "nothing": _NOTHING_VALUE},
     }, headers=_NO_STORE)
 
 @api.post("/typewriter/clear", operation_id="typewriter_clear")
@@ -254,7 +239,8 @@ def typewriter_clear():
         _TYPEWRITER_STATE["text"] = ""
         _TYPEWRITER_STATE["pos"] = 0
         _TYPEWRITER_STATE["pending_space"] = False
+        _TYPEWRITER_STATE["last_visible_char"] = None
+        _TYPEWRITER_STATE["last_visible_value"] = None
     return JSONResponse({"status": "cleared"}, headers=_NO_STORE)
 
-# ---------- Mount router ----------
 app.include_router(api)
