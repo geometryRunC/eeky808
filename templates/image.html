@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{{ title }}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+    <div class="bg-orb bg-orb-1"></div>
+    <div class="bg-orb bg-orb-2"></div>
+    <div class="bg-orb bg-orb-3"></div>
+
+    <main class="container">
+        <header class="hero">
+            <div class="badge">image panel</div>
+            <h1 class="hero-title">image panel</h1>
+            <p class="hero-tagline">draw it or upload it. 16x16 or 32x32.</p>
+            <div class="hero-actions">
+                <a class="btn btn-ghost" href="/">&larr; back home</a>
+                <a class="btn btn-ghost" href="/docs">api docs</a>
+            </div>
+        </header>
+
+        <!-- Drawing canvas -->
+        <section class="typewriter">
+            <h2 class="typewriter-title">draw</h2>
+            <p class="typewriter-desc">click or drag to toggle pixels</p>
+
+            <div class="draw-canvas" id="draw-canvas"></div>
+
+            <div class="draw-actions">
+                <button type="button" class="btn btn-ghost" id="draw-load">load from panel</button>
+                <button type="button" class="btn btn-ghost" id="draw-clear">clear</button>
+                <button type="button" class="btn btn-ghost" id="draw-invert">invert</button>
+                <button type="button" class="btn btn-ghost" id="draw-fill">fill</button>
+                <button type="button" class="btn btn-primary" id="draw-send">send to panel -&gt;</button>
+            </div>
+            <p class="typewriter-status" id="draw-status">click cells to draw</p>
+        </section>
+
+        <!-- Upload -->
+        <section class="typewriter">
+            <h2 class="typewriter-title">upload</h2>
+            <p class="typewriter-desc">any image. gets center-cropped, resized, dithered.</p>
+            <form id="upload-form" class="typewriter-form">
+                <input type="file" id="file-input" class="typewriter-input" accept="image/*" required />
+                <button type="submit" class="btn btn-primary">upload -&gt;</button>
+            </form>
+            <p class="typewriter-status" id="upload-status">pick an image and hit upload</p>
+        </section>
+
+        <!-- Live preview -->
+        <section class="image-preview" id="image-preview" hidden>
+            <div class="image-grid-wrap">
+                <p class="image-grid-label">16x16 (one panel) <span class="image-grid-meta" id="grid-16-meta"></span></p>
+                <div class="image-grid" id="grid-16"></div>
+                <div class="image-actions">
+                    <code class="image-endpoint">/api/panel/current</code>
+                </div>
+            </div>
+
+            <div class="image-grid-wrap">
+                <p class="image-grid-label">32x32 (four panels) <span class="image-grid-meta" id="grid-32-meta"></span></p>
+                <div class="image-grid image-grid-32" id="grid-32"></div>
+                <div class="image-actions">
+                    <code class="image-endpoint">/api/panel/panel1/current</code>
+                    <code class="image-endpoint">/api/panel/panel2/current</code>
+                    <code class="image-endpoint">/api/panel/panel3/current</code>
+                    <code class="image-endpoint">/api/panel/panel4/current</code>
+                </div>
+            </div>
+        </section>
+
+        <footer class="footer">
+            <span>inspired by <a href="https://www.roblox.com/games/9527099245/Build-Logic" target="_blank" rel="noopener">build logic on roblox</a> by tomtom4500</span>
+            <span>&middot;</span>
+            <a href="/">home</a>
+            <span>&middot;</span>
+            <a href="/docs">/docs</a>
+        </footer>
+    </main>
+
+    <script>
+        // ---------- Drawing canvas ----------
+        const drawCanvas = document.getElementById('draw-canvas');
+        const drawStatus = document.getElementById('draw-status');
+        const drawState = new Array(256).fill(0);
+        let isDrawing = false;
+        let drawValue = 1;
+
+        function initCanvas() {
+            drawCanvas.innerHTML = '';
+            for (let i = 0; i < 256; i++) {
+                const cell = document.createElement('div');
+                cell.className = 'draw-cell';
+                cell.dataset.idx = i;
+                drawCanvas.appendChild(cell);
+            }
+        }
+
+        function updateCell(idx) {
+            const cell = drawCanvas.children[idx];
+            if (cell) cell.classList.toggle('on', drawState[idx] === 1);
+        }
+
+        function paintAt(idx) {
+            if (idx < 0 || idx >= 256) return;
+            if (drawState[idx] !== drawValue) {
+                drawState[idx] = drawValue;
+                updateCell(idx);
+            }
+        }
+
+        function startAt(idx) {
+            isDrawing = true;
+            drawValue = drawState[idx] === 1 ? 0 : 1;
+            paintAt(idx);
+        }
+
+        // mouse
+        drawCanvas.addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            const target = e.target.closest('.draw-cell');
+            if (!target) return;
+            startAt(parseInt(target.dataset.idx, 10));
+        });
+        drawCanvas.addEventListener('mousemove', (e) => {
+            if (!isDrawing) return;
+            const target = e.target.closest('.draw-cell');
+            if (!target) return;
+            paintAt(parseInt(target.dataset.idx, 10));
+        });
+        document.addEventListener('mouseup', () => { isDrawing = false; });
+
+        // touch
+        function touchCell(e) {
+            const touch = e.touches[0];
+            const el = document.elementFromPoint(touch.clientX, touch.clientY);
+            if (!el) return -1;
+            const cell = el.closest('.draw-cell');
+            if (!cell || !drawCanvas.contains(cell)) return -1;
+            return parseInt(cell.dataset.idx, 10);
+        }
+        drawCanvas.addEventListener('touchstart', (e) => {
+            const idx = touchCell(e);
+            if (idx >= 0) {
+                e.preventDefault();
+                startAt(idx);
+            }
+        }, { passive: false });
+        drawCanvas.addEventListener('touchmove', (e) => {
+            if (!isDrawing) return;
+            const idx = touchCell(e);
+            if (idx >= 0) {
+                e.preventDefault();
+                paintAt(idx);
+            }
+        }, { passive: false });
+        document.addEventListener('touchend', () => { isDrawing = false; });
+
+        // buttons
+        document.getElementById('draw-clear').onclick = () => {
+            drawState.fill(0);
+            for (let i = 0; i < 256; i++) updateCell(i);
+            drawStatus.textContent = '> cleared';
+        };
+        document.getElementById('draw-invert').onclick = () => {
+            for (let i = 0; i < 256; i++) {
+                drawState[i] = drawState[i] ? 0 : 1;
+                updateCell(i);
+            }
+            drawStatus.textContent = '> inverted';
+        };
+        document.getElementById('draw-fill').onclick = () => {
+            drawState.fill(1);
+            for (let i = 0; i < 256; i++) updateCell(i);
+            drawStatus.textContent = '> filled';
+        };
+
+        async function loadFromPanel() {
+            try {
+                const res = await fetch('/api/panel/status');
+                const data = await res.json();
+                const bits = data['16'].bits;
+                if (bits && bits.length === 256) {
+                    for (let i = 0; i < 256; i++) {
+                        drawState[i] = bits[i] === '1' ? 1 : 0;
+                        updateCell(i);
+                    }
+                    drawStatus.textContent = '> loaded current panel image';
+                } else {
+                    drawStatus.textContent = '> panel is empty, nothing to load';
+                }
+            } catch (e) {
+                drawStatus.textContent = '> could not load from panel';
+            }
+        }
+
+        document.getElementById('draw-load').onclick = loadFromPanel;
+
+        document.getElementById('draw-send').onclick = async () => {
+            const bits = drawState.join('');
+            drawStatus.textContent = '> sending...';
+            try {
+                const res = await fetch('/api/panel/draw', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ bits })
+                });
+                if (res.ok) {
+                    drawStatus.textContent = '> sent! panel will pick it up on next polls';
+                } else {
+                    const data = await res.json();
+                    drawStatus.textContent = '> ' + (data.detail || 'error');
+                }
+            } catch (e) {
+                drawStatus.textContent = '> network error';
+            }
+        };
+
+        // ---------- Upload ----------
+        const form = document.getElementById('upload-form');
+        const fileInput = document.getElementById('file-input');
+        const uploadStatus = document.getElementById('upload-status');
+        const preview = document.getElementById('image-preview');
+        const grid16El = document.getElementById('grid-16');
+        const grid32El = document.getElementById('grid-32');
+        const meta16El = document.getElementById('grid-16-meta');
+        const meta32El = document.getElementById('grid-32-meta');
+
+        function renderGrid(el, bits, size) {
+            el.innerHTML = '';
+            el.style.gridTemplateColumns = 'repeat(' + size + ', 1fr)';
+            for (let i = 0; i < bits.length; i++) {
+                const cell = document.createElement('div');
+                cell.className = 'grid-cell' + (bits[i] === '1' ? ' on' : '');
+                el.appendChild(cell);
+            }
+        }
+
+        async function loadStatus() {
+            try {
+                const res = await fetch('/api/panel/status');
+                const data = await res.json();
+                if (data['16'].bits) {
+                    preview.hidden = false;
+                    renderGrid(grid16El, data['16'].bits, 16);
+                    renderGrid(grid32El, data['32'].bits, 32);
+                    meta16El.textContent = data['16'].pos + ' / ' + data['16'].length;
+                    const p = data['32'].pos;
+                    meta32El.textContent = 'p1:' + p['1'] + ' p2:' + p['2'] + ' p3:' + p['3'] + ' p4:' + p['4'];
+                } else {
+                    preview.hidden = true;
+                }
+            } catch (e) {}
+        }
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const file = fileInput.files[0];
+            if (!file) return;
+            if (file.size > 10 * 1024 * 1024) {
+                uploadStatus.textContent = '> image too big (max 10 MB)';
+                return;
+            }
+            uploadStatus.textContent = '> uploading ' + file.name + '...';
+            const formData = new FormData();
+            formData.append('file', file);
+            try {
+                const res = await fetch('/api/panel/upload', { method: 'POST', body: formData });
+                const data = await res.json();
+                if (res.ok) {
+                    uploadStatus.textContent = '> done! 16x16 + 32x32 ready to send';
+                    fileInput.value = '';
+                    loadStatus();
+                    // also load into the drawing canvas so they can tweak it
+                    loadFromPanel();
+                } else {
+                    uploadStatus.textContent = '> ' + (data.detail || 'upload failed');
+                }
+            } catch (err) {
+                uploadStatus.textContent = '> network error';
+            }
+        });
+
+        // ---------- Init ----------
+        initCanvas();
+        loadStatus();
+        loadFromPanel();
+        setInterval(loadStatus, 1000);
+    </script>
+</body>
+              </html>
