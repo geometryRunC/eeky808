@@ -30,13 +30,13 @@
             <h2 class="typewriter-title">typewriter</h2>
             <p class="typewriter-desc">type something and it shows up on the panel one letter at a time.</p>
             <form class="typewriter-form" id="typewriter-form">
-                <input 
-                    type="text" 
-                    id="typewriter-input" 
+                <input
+                    type="text"
+                    id="typewriter-input"
                     class="typewriter-input"
-                    maxlength="499" 
-                    placeholder="hello world..." 
-                    autocomplete="off" 
+                    maxlength="499"
+                    placeholder="hello world..."
+                    autocomplete="off"
                 />
                 <button type="submit" class="btn btn-primary">send -&gt;</button>
             </form>
@@ -98,19 +98,19 @@
 
             <a class="card" href="/api/txtpanel/nothing">
                 <h2 class="card-title">nothing</h2>
-                <p class="card-desc">idle signal. <code>01111111</code> means nothin's being sent — clock stays off.</p>
+                <p class="card-desc">idle signal. <code>10000000</code> means nothin's being sent — clock stays off.</p>
                 <span class="card-path">/api/txtpanel/nothing</span>
             </a>
 
             <a class="card" href="/api/typewriter/current">
                 <h2 class="card-title">typewriter</h2>
-                <p class="card-desc">next letter the panel should show. advances each GET. one space before new text.</p>
+                <p class="card-desc">next letter the panel should show. advances each GET. types once, then stops.</p>
                 <span class="card-path">/api/typewriter/current</span>
             </a>
 
             <a class="card" href="/api/typewriter/status">
                 <h2 class="card-title">whats on the panel</h2>
-                <p class="card-desc">text, cursor, state (idle / space-gap / typing). what the panel sees right now.</p>
+                <p class="card-desc">last char the panel received. shows what's really on screen.</p>
                 <span class="card-path">/api/typewriter/status</span>
             </a>
         </section>
@@ -125,7 +125,7 @@
     </main>
 
     <script>
-        // form submit
+        // --- form submit ---
         document.getElementById('typewriter-form').addEventListener('submit', async (e) => {
             e.preventDefault();
             const input = document.getElementById('typewriter-input');
@@ -145,7 +145,6 @@
                 if (res.ok) {
                     status.textContent = '> sent! ' + text.length + ' chars heading to the panel';
                     input.value = '';
-                    updatePanel();
                 } else {
                     status.textContent = '> oops server said no';
                 }
@@ -154,60 +153,76 @@
             }
         });
 
-        // live panel view
+        // --- live panel view ---
         const elChar = document.getElementById('panel-live-char');
         const elValue = document.getElementById('panel-live-value');
         const elState = document.getElementById('panel-live-state');
         const elMeta = document.getElementById('panel-live-meta');
 
-        const STATE_LABELS = {
-            'idle':      'idle · nothing being sent · clock off',
-            'space-gap': 'sending one space before new text',
-            'typing':    'typing',
-        };
+        let lastValue = null;
 
         async function updatePanel() {
             try {
                 const res = await fetch('/api/typewriter/status');
                 const data = await res.json();
 
-                // character display
-                let shown;
-                if (data.state === 'idle') {
-                    shown = '–';
-                } else if (data.current_char === ' ') {
-                    shown = '\u2423';   // ␣
-                } else if (data.current_char) {
-                    shown = data.current_char;
-                } else {
-                    shown = '–';
+                const hasValue = data.panel_value !== null;
+
+                // what the panel is physically holding right now
+                let shown = '–';
+                if (hasValue) {
+                    if (data.panel_char === ' ') shown = '\u2423';
+                    else if (data.panel_char) shown = data.panel_char;
                 }
                 elChar.textContent = shown;
-                elChar.className = 'panel-live-char state-' + data.state;
+                elValue.textContent = hasValue ? data.panel_value : '--------';
 
-                // 8-bit value
-                elValue.textContent = data.current_value;
-                elValue.className = 'panel-live-value state-' + data.state;
+                // pulse on change
+                if (hasValue && data.panel_value !== lastValue) {
+                    elChar.classList.remove('pulse');
+                    elValue.classList.remove('pulse');
+                    void elChar.offsetWidth;
+                    elChar.classList.add('pulse');
+                    elValue.classList.add('pulse');
+                    lastValue = data.panel_value;
+                }
 
                 // state label
-                elState.textContent = STATE_LABELS[data.state] || data.state;
-
-                // meta line (position, text)
-                if (data.state === 'idle') {
-                    elMeta.textContent = '';
-                } else if (data.state === 'space-gap') {
-                    elMeta.textContent = 'next: ' + data.text.slice(0, 20) + (data.text.length > 20 ? '…' : '');
+                if (!hasValue) {
+                    elState.textContent = 'waiting for panel to connect...';
+                    elChar.classList.add('state-inactive');
+                    elValue.classList.add('state-inactive');
+                } else if (data.text) {
+                    elState.textContent = 'live · typing now';
+                    elChar.classList.remove('state-inactive');
+                    elValue.classList.remove('state-inactive');
+                } else if (data.panel_active) {
+                    elState.textContent = 'live · idle · panel holding last char';
+                    elChar.classList.remove('state-inactive');
+                    elValue.classList.remove('state-inactive');
                 } else {
-                    elMeta.textContent = 'pos ' + data.pos + ' / ' + data.buffer_length +
-                        ' · "' + data.text.slice(0, 20) + (data.text.length > 20 ? '…' : '') + '"';
+                    elState.textContent = 'panel idle · last seen ' + data.since_last_served + 's ago';
+                    elChar.classList.add('state-inactive');
+                    elValue.classList.add('state-inactive');
+                }
+
+                // meta line
+                if (data.text) {
+                    const preview = data.text.slice(0, 24) + (data.text.length > 24 ? '…' : '');
+                    elMeta.textContent = 'pos ' + data.pos + ' / ' + data.buffer_length + ' · "' + preview + '"';
+                } else if (hasValue) {
+                    const held = data.panel_char === ' ' ? '␣' : data.panel_char;
+                    elMeta.textContent = 'idle · holding "' + held + '"';
+                } else {
+                    elMeta.textContent = '';
                 }
             } catch (err) {
-                elState.textContent = '> lost connection to server';
+                elState.textContent = '> lost connection';
             }
         }
 
         updatePanel();
-        setInterval(updatePanel, 500);
+        setInterval(updatePanel, 150);
     </script>
 </body>
 </html>
