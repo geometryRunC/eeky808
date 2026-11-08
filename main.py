@@ -167,32 +167,33 @@ def _load_badapple_bin() -> list[str]:
 
 _BADAPPLE_FRAMES = _load_badapple_bin()
 
-_BADAPPLE_COUNTER = 0
-_BADAPPLE_COUNTER_LOCK = threading.Lock()
+_BADAPPLE_CURSOR = 0
+_BADAPPLE_CURSOR_LOCK = threading.Lock()
 
 @app.get("/panel/badapple16", operation_id="panel_badapple16")
 def panel_badapple16():
     """
-    Bad Apple!! at 16×16.
-    Each GET advances to the NEXT frame (counter-based, not time-based).
-    First GET → frame 0, second → frame 1, …, wraps around automatically.
-    Returns 256 values, each 8 bits: "0000000{pixel}" (7 padding + 1 color bit).
+    Bad Apple!! at 16×16, one pixel per GET.
+    Every request advances the cursor by one pixel (row-major).
+    After pixel 255, wraps to pixel 0 of the next frame.
+    Returns a single {"value": "0000000{pixel}"} (7 padding + 1 color bit).
     """
-    global _BADAPPLE_COUNTER
-    with _BADAPPLE_COUNTER_LOCK:
-        idx = _BADAPPLE_COUNTER % len(_BADAPPLE_FRAMES)
-        _BADAPPLE_COUNTER += 1
+    global _BADAPPLE_CURSOR
+    total_pixels = len(_BADAPPLE_FRAMES) * 256
+    with _BADAPPLE_CURSOR_LOCK:
+        cursor = _BADAPPLE_CURSOR % total_pixels
+        _BADAPPLE_CURSOR += 1
 
-    bits = _BADAPPLE_FRAMES[idx]
-    return JSONResponse(
-        [{"value": f"0000000{b}"} for b in bits],
-        headers=_NO_STORE,
-    )
+    frame_idx = cursor // 256
+    pixel_idx = cursor % 256
+    bit = _BADAPPLE_FRAMES[frame_idx][pixel_idx]
+
+    return JSONResponse({"value": f"0000000{bit}"}, headers=_NO_STORE)
 
 @app.post("/panel/badapple16/reset", operation_id="panel_badapple16_reset")
 def panel_badapple16_reset():
-    """Reset the frame counter back to 0 (next GET returns frame 0)."""
-    global _BADAPPLE_COUNTER
-    with _BADAPPLE_COUNTER_LOCK:
-        _BADAPPLE_COUNTER = 0
-    return {"status": "reset", "next_frame": 0}
+    """Reset the cursor to frame 0, pixel 0."""
+    global _BADAPPLE_CURSOR
+    with _BADAPPLE_CURSOR_LOCK:
+        _BADAPPLE_CURSOR = 0
+    return {"status": "reset", "next_pixel": 0}
