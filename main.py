@@ -84,7 +84,7 @@ for _shift, _i5, _i4, _i3, _i2, _i1, _i0, _char in TEXT_PANEL_TRUTH:
     _ALPHABET[_char] = {"value": to_8bit(_shift, _i5, _i4, _i3, _i2, _i1, _i0)}
 
 _SPACE_VALUE = _ALPHABET[" "]["value"]      # 00111111 — actual space char
-_NOTHING_VALUE = "01111111"                  # idle — nothing being sent
+_NOTHING_VALUE = "10000000"                  # idle — nothing being sent
 _NO_STORE = {"Cache-Control": "no-store"}
 
 # ---------- Text Panel endpoints ----------
