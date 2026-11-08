@@ -66,6 +66,12 @@
                 <span class="card-path">/truthtable</span>
             </a>
 
+            <a class="card" href="/image">
+                <h2 class="card-title">image panel</h2>
+                <p class="card-desc">draw or upload an image, dither it to 16x16 or 32x32. sent pixel by pixel.</p>
+                <span class="card-path">/image</span>
+            </a>
+
             <a class="card" href="/api/txtpanel">
                 <h2 class="card-title">all the txt panel letters</h2>
                 <p class="card-desc">every character from the truth table with its 8 bit code.</p>
@@ -112,6 +118,18 @@
                 <h2 class="card-title">whats on the panel</h2>
                 <p class="card-desc">last char the panel received. shows what's really on screen.</p>
                 <span class="card-path">/api/typewriter/status</span>
+            </a>
+
+            <a class="card" href="/api/panel/current">
+                <h2 class="card-title">image panel (16x16)</h2>
+                <p class="card-desc">next image pixel per GET. advances, idles when the image is done.</p>
+                <span class="card-path">/api/panel/current</span>
+            </a>
+
+            <a class="card" href="/api/panel/status">
+                <h2 class="card-title">image state</h2>
+                <p class="card-desc">bits + cursors for the 16x16 and all four 32x32 quadrants.</p>
+                <span class="card-path">/api/panel/status</span>
             </a>
         </section>
 
@@ -213,6 +231,19 @@
                 } else if (hasValue) {
                     const held = data.panel_char === ' ' ? '␣' : data.panel_char;
                     elMeta.textContent = 'idle · holding "' + held + '"';
+                } else {
+                    elMeta.textContent = '';
+                }
+            } catch (err) {
+                elState.textContent = '> lost connection';
+            }
+        }
+
+        updatePanel();
+        setInterval(updatePanel, 150);
+    </script>
+</body>
+</html>     elMeta.textContent = 'idle · holding "' + held + '"';
                 } else {
                     elMeta.textContent = '';
                 }
