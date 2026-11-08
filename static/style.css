@@ -14,7 +14,6 @@
 
 * { box-sizing: border-box; }
 
-/* Kill the ugly blue tap highlight on mobile */
 html {
     -webkit-tap-highlight-color: transparent;
     -webkit-touch-callout: none;
@@ -35,7 +34,6 @@ html, body {
 
 body { position: relative; }
 
-/* Floating monochrome orbs */
 .bg-orb {
     position: fixed;
     border-radius: 50%;
@@ -44,26 +42,9 @@ body { position: relative; }
     pointer-events: none;
     animation: float 20s ease-in-out infinite;
 }
-.bg-orb-1 {
-    width: 520px; height: 520px;
-    background: #ffffff;
-    opacity: 0.06;
-    top: -160px; left: -160px;
-}
-.bg-orb-2 {
-    width: 460px; height: 460px;
-    background: #ffffff;
-    opacity: 0.04;
-    top: 40%; right: -180px;
-    animation-delay: -7s;
-}
-.bg-orb-3 {
-    width: 420px; height: 420px;
-    background: #ffffff;
-    opacity: 0.03;
-    bottom: -160px; left: 30%;
-    animation-delay: -14s;
-}
+.bg-orb-1 { width: 520px; height: 520px; background: #fff; opacity: 0.06; top: -160px; left: -160px; }
+.bg-orb-2 { width: 460px; height: 460px; background: #fff; opacity: 0.04; top: 40%; right: -180px; animation-delay: -7s; }
+.bg-orb-3 { width: 420px; height: 420px; background: #fff; opacity: 0.03; bottom: -160px; left: 30%; animation-delay: -14s; }
 
 @keyframes float {
     0%, 100% { transform: translate(0, 0) scale(1); }
@@ -71,7 +52,6 @@ body { position: relative; }
     66%      { transform: translate(-30px, 20px) scale(0.96); }
 }
 
-/* Layout */
 .container {
     position: relative;
     z-index: 1;
@@ -80,10 +60,9 @@ body { position: relative; }
     padding: 80px 24px 60px;
 }
 
-/* Hero */
 .hero {
     text-align: center;
-    margin-bottom: 80px;
+    margin-bottom: 60px;
     animation: fadeUp 0.8s ease both;
 }
 
@@ -104,10 +83,10 @@ body { position: relative; }
     content: '';
     display: inline-block;
     width: 6px; height: 6px;
-    background: #ffffff;
+    background: #fff;
     border-radius: 50%;
     margin-right: 8px;
-    box-shadow: 0 0 10px #ffffff;
+    box-shadow: 0 0 10px #fff;
     animation: blink 1.8s ease-in-out infinite;
 }
 @keyframes blink {
@@ -121,7 +100,7 @@ body { position: relative; }
     letter-spacing: -0.05em;
     line-height: 1;
     margin: 0 0 18px;
-    background: linear-gradient(120deg, #ffffff 0%, #8a8a8a 35%, #e0e0e0 65%, #ffffff 100%);
+    background: linear-gradient(120deg, #fff 0%, #8a8a8a 35%, #e0e0e0 65%, #fff 100%);
     background-size: 200% 200%;
     -webkit-background-clip: text;
     background-clip: text;
@@ -137,16 +116,10 @@ body { position: relative; }
 .hero-tagline {
     font-size: clamp(1rem, 2.2vw, 1.4rem);
     font-family: var(--font-mono);
-    font-weight: 400;
     color: var(--text-dim);
     margin: 0 0 14px;
-    letter-spacing: 0;
 }
-.hero-tagline::before {
-    content: '> ';
-    color: var(--accent);
-    opacity: 0.6;
-}
+.hero-tagline::before { content: '> '; color: var(--accent); opacity: 0.6; }
 
 .hero-intro {
     font-size: 0.95rem;
@@ -154,7 +127,6 @@ body { position: relative; }
     margin: 0 0 40px;
 }
 
-/* Buttons */
 .hero-actions {
     display: flex;
     gap: 12px;
@@ -171,15 +143,15 @@ body { position: relative; }
     text-decoration: none;
     border-radius: 8px;
     transition: all 0.2s ease;
-    text-transform: lowercase;
     letter-spacing: 0.02em;
     -webkit-tap-highlight-color: transparent;
     touch-action: manipulation;
+    cursor: pointer;
 }
 .btn-primary {
     color: #0a0a0a;
-    background: #ffffff;
-    border: 1px solid #ffffff;
+    background: #fff;
+    border: 1px solid #fff;
 }
 .btn-primary:hover {
     transform: translateY(-2px);
@@ -194,8 +166,67 @@ body { position: relative; }
 }
 .btn-ghost:hover {
     background: var(--surface-hover);
-    border-color: #ffffff;
+    border-color: #fff;
     transform: translateY(-2px);
+}
+
+/* Typewriter section */
+.typewriter {
+    margin-bottom: 60px;
+    padding: 40px 32px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    backdrop-filter: blur(12px);
+    text-align: center;
+    animation: fadeUp 0.8s 0.1s ease both;
+}
+
+.typewriter-title {
+    font-size: 1.5rem;
+    font-weight: 500;
+    margin: 0 0 8px;
+    color: #fff;
+}
+
+.typewriter-desc {
+    font-size: 0.9rem;
+    color: var(--text-dim);
+    margin: 0 0 24px;
+}
+
+.typewriter-form {
+    display: flex;
+    gap: 10px;
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+.typewriter-input {
+    flex: 1;
+    padding: 14px 18px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 0.95rem;
+    outline: none;
+    transition: border-color 0.2s;
+}
+.typewriter-input:focus {
+    border-color: #fff;
+}
+.typewriter-input::placeholder {
+    color: var(--text-faint);
+}
+
+.typewriter-status {
+    margin: 16px 0 0;
+    font-size: 0.85rem;
+    font-family: var(--font-mono);
+    color: var(--text-dim);
+    min-height: 1.2em;
 }
 
 /* Card grid */
@@ -245,7 +276,7 @@ body { position: relative; }
     font-size: 1.05rem;
     font-weight: 500;
     margin: 0 0 8px;
-    color: #ffffff;
+    color: #fff;
     letter-spacing: -0.01em;
 }
 
@@ -265,10 +296,9 @@ body { position: relative; }
     background: rgba(255, 255, 255, 0.04);
     border-radius: 6px;
     border: 1px solid rgba(255, 255, 255, 0.1);
-    letter-spacing: 0.01em;
 }
 .card:hover .card-path {
-    color: #ffffff;
+    color: #fff;
     background: rgba(255, 255, 255, 0.09);
     border-color: rgba(255, 255, 255, 0.25);
 }
@@ -282,7 +312,6 @@ code {
     color: #e0e0e0;
 }
 
-/* Footer */
 .footer {
     display: flex;
     justify-content: center;
@@ -300,27 +329,24 @@ code {
     text-decoration: none;
     transition: color 0.2s;
 }
-.footer a:hover { color: #ffffff; }
+.footer a:hover { color: #fff; }
 
-/* Animations */
 @keyframes fadeUp {
     from { opacity: 0; transform: translateY(16px); }
     to   { opacity: 1; transform: translateY(0); }
 }
 
-/* Responsive */
-@media (max-width: 640px) {
-    .container { padding: 50px 18px 40px; }
-    .hero { margin-bottom: 50px; }
-    .grid { gap: 14px; margin-bottom: 50px; }
-    .card { padding: 22px 20px; }
-}
-
-/* Subtle press feedback instead of the blue flash */
-.card:active,
-.btn:active,
-.footer a:active {
+.card:active, .btn:active, .footer a:active {
     transform: scale(0.97);
     opacity: 0.85;
     transition: transform 0.05s ease, opacity 0.05s ease;
+}
+
+@media (max-width: 640px) {
+    .container { padding: 50px 18px 40px; }
+    .hero { margin-bottom: 40px; }
+    .typewriter { padding: 28px 20px; margin-bottom: 40px; }
+    .typewriter-form { flex-direction: column; }
+    .grid { gap: 14px; margin-bottom: 50px; }
+    .card { padding: 22px 20px; }
 }
