@@ -796,3 +796,107 @@ table.tt tbody tr.shift-divider td {
     .tt-value { font-size: 0.7rem; letter-spacing: 0; }
     .tt-char { font-size: 0.9rem; }
 }
+
+/* ---------- Live panel view on homepage ---------- */
+
+.panel-live {
+    margin-top: 32px;
+    padding-top: 28px;
+    border-top: 1px solid var(--border);
+}
+
+.panel-live-label {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    color: var(--text-faint);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    margin: 0 0 14px;
+    text-align: center;
+}
+
+.panel-live-display {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+
+.panel-live-char {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 80px;
+    height: 80px;
+    font-family: var(--font-mono);
+    font-size: 2.4rem;
+    font-weight: 700;
+    color: #fff;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    transition: all 0.3s ease;
+    padding: 0 16px;
+}
+.panel-live-char.state-idle {
+    color: var(--text-faint);
+    border-style: dashed;
+}
+.panel-live-char.state-space-gap {
+    color: var(--text-dim);
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+.panel-live-value {
+    font-family: var(--font-mono);
+    font-size: 1.5rem;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    color: var(--accent);
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 20px;
+    transition: all 0.3s ease;
+}
+.panel-live-value.state-idle {
+    color: var(--text-faint);
+    border-style: dashed;
+}
+.panel-live-value.state-space-gap {
+    color: var(--text-dim);
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+.panel-live-state {
+    margin: 18px 0 4px;
+    text-align: center;
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    color: var(--text-dim);
+    transition: color 0.3s ease;
+}
+
+.panel-live-meta {
+    margin: 0;
+    text-align: center;
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    color: var(--text-faint);
+    min-height: 1.2em;
+}
+
+@media (max-width: 640px) {
+    .panel-live-char {
+        min-width: 64px;
+        height: 64px;
+        font-size: 1.8rem;
+    }
+    .panel-live-value {
+        font-size: 1.2rem;
+        padding: 10px 16px;
+        letter-spacing: 0.1em;
+    }
+    .panel-live-display { gap: 12px; }
+}
