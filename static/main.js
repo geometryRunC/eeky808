@@ -1,6 +1,28 @@
 (function () {
     "use strict";
 
+    // --- card spotlight (follows the cursor) ---
+    document.querySelectorAll('.card').forEach(function (card) {
+        card.addEventListener('pointermove', function (e) {
+            var r = card.getBoundingClientRect();
+            card.style.setProperty('--mx', (e.clientX - r.left) + 'px');
+            card.style.setProperty('--my', (e.clientY - r.top) + 'px');
+        });
+    });
+
+    // --- background orbs drift a bit with the mouse ---
+    var orbs = document.querySelectorAll('.bg-orb');
+    if (orbs.length && window.matchMedia('(pointer: fine)').matches) {
+        window.addEventListener('pointermove', function (e) {
+            var x = (e.clientX / window.innerWidth - 0.5) * 2;
+            var y = (e.clientY / window.innerHeight - 0.5) * 2;
+            orbs.forEach(function (o, i) {
+                var d = (i + 1) * 14;
+                o.style.translate = (x * d) + 'px ' + (y * d) + 'px';
+            });
+        }, { passive: true });
+    }
+
     // --- form submit ---
     var form = document.getElementById('typewriter-form');
     var input = document.getElementById('typewriter-input');
