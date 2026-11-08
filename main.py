@@ -38,15 +38,6 @@ def homepage(request: Request):
 def health():
     return {"status": "ok"}
 
-@app.get("/debug/files")
-def debug_files():
-    import os
-    src = "/opt/render/project/src"
-    result = {"cwd": os.getcwd(), "root": sorted(os.listdir(src))}
-    tpl = os.path.join(src, "templates")
-    result["templates"] = sorted(os.listdir(tpl)) if os.path.isdir(tpl) else "MISSING"
-    return result
-
 # ---------- APIs ----------
 api = APIRouter(prefix="/api")
 
@@ -80,19 +71,16 @@ for _shift, _i5, _i4, _i3, _i2, _i1, _i0, _char in TEXT_PANEL_TRUTH:
         continue
     _ALPHABET[_char] = {"value": to_8bit(_shift, _i5, _i4, _i3, _i2, _i1, _i0)}
 
+_SPACE_VALUE = _ALPHABET[" "]["value"]
 _NO_STORE = {"Cache-Control": "no-store"}
 
 # ---------- Text Panel endpoints ----------
-# IMPORTANT: specific routes FIRST, dynamic /{char} LAST.
-
 @api.get("/txtpanel", operation_id="txtpanel_all")
 def txtpanel_all():
-    """Full map: {char: {"value": "8-bit"}} (deduped, empties skipped)."""
     return JSONResponse(_ALPHABET, headers=_NO_STORE)
 
 @api.get("/txtpanel/table", operation_id="txtpanel_table")
 def txtpanel_table():
-    """Deduped truth table as ordered list of {value: "8-bit"} entries."""
     return JSONResponse(
         [{"value": obj["value"]} for obj in _ALPHABET.values()],
         headers=_NO_STORE,
@@ -100,7 +88,6 @@ def txtpanel_table():
 
 @api.get("/txtpanel/full", operation_id="txtpanel_full")
 def txtpanel_full():
-    """Raw truth table: shift/i5…i0/char/value per row (128 rows, nothing skipped)."""
     return JSONResponse(
         [
             {
@@ -116,84 +103,96 @@ def txtpanel_full():
 
 @api.get("/txtpanel/current", operation_id="txtpanel_current")
 def txtpanel_current():
-    """Current character's 8-bit value — advances once per wall-clock second."""
     if not _ALPHABET:
         return JSONResponse({"value": "00000000"}, headers=_NO_STORE)
     chars = list(_ALPHABET.keys())
     idx = int(time.time()) % len(chars)
     return JSONResponse(_ALPHABET[chars[idx]], headers=_NO_STORE)
 
-# ---------- "Hello World!" cycler ----------
 _HELLO_WORLD = "Hello World! "
 _HELLO_INTERVAL = 0.5
 
 @api.get("/txtpanel/hello", operation_id="txtpanel_hello")
 def txtpanel_hello():
-    """Cycles through 'Hello World! ' every _HELLO_INTERVAL seconds."""
     ticks_per_sec = max(1, round(1 / _HELLO_INTERVAL))
     idx = int(time.time() * ticks_per_sec) % len(_HELLO_WORLD)
     entry = _ALPHABET.get(_HELLO_WORLD[idx])
     return JSONResponse(entry or {"value": "00000000"}, headers=_NO_STORE)
 
-# Dynamic catch-all MUST come after /current, /table, /full, /hello
 @api.get("/txtpanel/{char}", operation_id="txtpanel_char")
 def txtpanel_char(char: str):
-    """Look up a single character's 8-bit value."""
     if char in _ALPHABET:
         return {"char": char, **_ALPHABET[char]}
     raise HTTPException(status_code=404, detail=f"Character {char!r} not in truth table")
 
-# ---------- Mount router AFTER all routes are defined ----------
+# ---------- Typewriter ----------
+_TYPEWRITER_LOCK = threading.Lock()
+_TYPEWRITER_STATE = {
+    "text": "type on the site lol",
+    "pos": 0,
+    "padding": "        ",  # 8 trailing spaces before loop
+}
+
+def _char_to_value(ch: str) -> str:
+    """8-bit value for a char, fallback to space if not in truth table."""
+    entry = _ALPHABET.get(ch)
+    if entry is not None:
+        return entry["value"]
+    return _SPACE_VALUE
+
+class TypewriterBody(BaseModel):
+    text: str
+
+@api.post("/typewriter", operation_id="typewriter_set")
+def typewriter_set(body: TypewriterBody):
+    """Set text to be typed on the panel. Resets to start."""
+    text = body.text[:500]
+    with _TYPEWRITER_LOCK:
+        _TYPEWRITER_STATE["text"] = text
+        _TYPEWRITER_STATE["pos"] = 0
+    return JSONResponse(
+        {"status": "ok", "length": len(text)},
+        headers=_NO_STORE,
+    )
+
+@api.get("/typewriter/current", operation_id="typewriter_current")
+def typewriter_current():
+    """
+    Return next character's 8-bit value, advance one step.
+    Each GET = one character written. Speed = panel poll rate
+    (10 GETs/sec = 10 chars/sec, etc.).
+    """
+    with _TYPEWRITER_LOCK:
+        text = _TYPEWRITER_STATE["text"]
+        if not text:
+            return JSONResponse({"value": _SPACE_VALUE}, headers=_NO_STORE)
+        buffer = text + _TYPEWRITER_STATE["padding"]
+        pos = _TYPEWRITER_STATE["pos"]
+        ch = buffer[pos]
+        _TYPEWRITER_STATE["pos"] = (pos + 1) % len(buffer)
+    return JSONResponse({"value": _char_to_value(ch)}, headers=_NO_STORE)
+
+@api.get("/typewriter/status", operation_id="typewriter_status")
+def typewriter_status():
+    with _TYPEWRITER_LOCK:
+        text = _TYPEWRITER_STATE["text"]
+        pos = _TYPEWRITER_STATE["pos"]
+        padding = _TYPEWRITER_STATE["padding"]
+    buffer = text + padding
+    return JSONResponse({
+        "text": text,
+        "length": len(text),
+        "pos": pos,
+        "buffer_length": len(buffer),
+        "current_char": buffer[pos] if text else None,
+    }, headers=_NO_STORE)
+
+@api.post("/typewriter/clear", operation_id="typewriter_clear")
+def typewriter_clear():
+    with _TYPEWRITER_LOCK:
+        _TYPEWRITER_STATE["text"] = ""
+        _TYPEWRITER_STATE["pos"] = 0
+    return JSONResponse({"status": "cleared"}, headers=_NO_STORE)
+
+# ---------- Mount router ----------
 app.include_router(api)
-
-# ---------- Panel: Bad Apple 16×16 ----------
-_BADAPPLE_BIN = BASE_DIR / "badapple16.bin"
-
-def _load_badapple_bin() -> list[str]:
-    """Load 256-bit frames from badapple16.bin. Fails fast if missing."""
-    if not _BADAPPLE_BIN.is_file():
-        raise RuntimeError(
-            f"badapple16.bin not found at {_BADAPPLE_BIN}. "
-            f"Run gen_badapple.py to create it, then commit the file."
-        )
-    with open(_BADAPPLE_BIN) as f:
-        frames = [ln.strip() for ln in f if len(ln.strip()) == 256]
-    if not frames:
-        raise RuntimeError(
-            f"{_BADAPPLE_BIN} exists but contains no valid 256-bit frame lines."
-        )
-    print(f"[badapple] loaded {len(frames)} frames from {_BADAPPLE_BIN.name}")
-    return frames
-
-_BADAPPLE_FRAMES = _load_badapple_bin()
-
-_BADAPPLE_CURSOR = 0
-_BADAPPLE_CURSOR_LOCK = threading.Lock()
-
-@app.get("/panel/badapple16", operation_id="panel_badapple16")
-def panel_badapple16():
-    """
-    Bad Apple!! at 16×16, one pixel per GET.
-    Every request advances the cursor by one pixel (row-major).
-    After pixel 255, wraps to pixel 0 of the next frame.
-    Returns a single {"value": "0000000{pixel}"} (7 padding + 1 color bit).
-    """
-    global _BADAPPLE_CURSOR
-    total_pixels = len(_BADAPPLE_FRAMES) * 256
-    with _BADAPPLE_CURSOR_LOCK:
-        cursor = _BADAPPLE_CURSOR % total_pixels
-        _BADAPPLE_CURSOR += 1
-
-    frame_idx = cursor // 256
-    pixel_idx = cursor % 256
-    bit = _BADAPPLE_FRAMES[frame_idx][pixel_idx]
-
-    return JSONResponse({"value": f"0000000{bit}"}, headers=_NO_STORE)
-
-@app.post("/panel/badapple16/reset", operation_id="panel_badapple16_reset")
-def panel_badapple16_reset():
-    """Reset the cursor to frame 0, pixel 0."""
-    global _BADAPPLE_CURSOR
-    with _BADAPPLE_CURSOR_LOCK:
-        _BADAPPLE_CURSOR = 0
-    return {"status": "reset", "next_pixel": 0}
