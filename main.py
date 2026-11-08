@@ -151,7 +151,7 @@ def txtpanel_inputs(char: str):
 
 @api.get("/txtpanel/nothing", operation_id="txtpanel_nothing")
 def txtpanel_nothing():
-    """The idle signal — means 'nothing is being sent'. MSB=1 so a single NOT gate detects it."""
+    """The idle signal — MSB=1 so a single NOT gate detects it."""
     return JSONResponse({"value": _NOTHING_VALUE}, headers=_NO_STORE)
 
 # Dynamic catch-all LAST
@@ -166,8 +166,11 @@ _TYPEWRITER_LOCK = threading.Lock()
 _TYPEWRITER_STATE = {
     "text": "type on the site lol",
     "pos": 0,
-    "padding": "        ",   # 8 trailing spaces = pause before loop
-    "pending_space": False,   # when True, send one space before next char
+    "padding": "        ",       # 8 trailing spaces = pause before loop
+    "pending_space": False,       # when True, send one space before next char
+    "last_served_value": None,    # what the panel last received
+    "last_served_char": None,
+    "last_served_at": 0.0,
 }
 
 def _char_to_value(ch: str) -> str:
@@ -194,15 +197,25 @@ def typewriter_current():
     with _TYPEWRITER_LOCK:
         text = _TYPEWRITER_STATE["text"]
         if not text:
-            return JSONResponse({"value": _NOTHING_VALUE}, headers=_NO_STORE)
-        if _TYPEWRITER_STATE["pending_space"]:
+            value = _NOTHING_VALUE
+            char = None
+        elif _TYPEWRITER_STATE["pending_space"]:
             _TYPEWRITER_STATE["pending_space"] = False
-            return JSONResponse({"value": _SPACE_VALUE}, headers=_NO_STORE)
-        buffer = text + _TYPEWRITER_STATE["padding"]
-        pos = _TYPEWRITER_STATE["pos"]
-        ch = buffer[pos]
-        _TYPEWRITER_STATE["pos"] = (pos + 1) % len(buffer)
-    return JSONResponse({"value": _char_to_value(ch)}, headers=_NO_STORE)
+            value = _SPACE_VALUE
+            char = " "
+        else:
+            buffer = text + _TYPEWRITER_STATE["padding"]
+            pos = _TYPEWRITER_STATE["pos"]
+            char = buffer[pos]
+            value = _char_to_value(char)
+            _TYPEWRITER_STATE["pos"] = (pos + 1) % len(buffer)
+
+        # remember exactly what we just handed out
+        _TYPEWRITER_STATE["last_served_value"] = value
+        _TYPEWRITER_STATE["last_served_char"] = char
+        _TYPEWRITER_STATE["last_served_at"] = time.time()
+
+    return JSONResponse({"value": value}, headers=_NO_STORE)
 
 @api.get("/typewriter/status", operation_id="typewriter_status")
 def typewriter_status():
@@ -211,28 +224,23 @@ def typewriter_status():
         pos = _TYPEWRITER_STATE["pos"]
         padding = _TYPEWRITER_STATE["padding"]
         pending = _TYPEWRITER_STATE["pending_space"]
+        last_value = _TYPEWRITER_STATE["last_served_value"]
+        last_char = _TYPEWRITER_STATE["last_served_char"]
+        last_at = _TYPEWRITER_STATE["last_served_at"]
 
-    buffer = text + padding
-    current_char = buffer[pos] if text else None
-
-    if not text:
-        current_value = _NOTHING_VALUE
-        state = "idle"
-    elif pending:
-        current_value = _SPACE_VALUE
-        state = "space-gap"
-    else:
-        current_value = _char_to_value(current_char) if current_char else _SPACE_VALUE
-        state = "typing"
+    now = time.time()
+    panel_active = last_at > 0 and (now - last_at) < 2.0
+    since_last = round(now - last_at, 2) if last_at > 0 else None
 
     return JSONResponse({
         "text": text,
         "length": len(text),
         "pos": pos,
-        "buffer_length": len(buffer),
-        "current_char": current_char,
-        "current_value": current_value,
-        "state": state,
+        "buffer_length": len(text) + len(padding),
+        "panel_active": panel_active,
+        "since_last_served": since_last,
+        "panel_char": last_char,
+        "panel_value": last_value,
         "pending_space": pending,
         "special": {
             "space": _SPACE_VALUE,
