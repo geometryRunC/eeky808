@@ -84,7 +84,7 @@ for _shift, _i5, _i4, _i3, _i2, _i1, _i0, _char in TEXT_PANEL_TRUTH:
     _ALPHABET[_char] = {"value": to_8bit(_shift, _i5, _i4, _i3, _i2, _i1, _i0)}
 
 _SPACE_VALUE = _ALPHABET[" "]["value"]      # 00111111 — actual space char
-_NOTHING_VALUE = "10000000"                  # idle — nothing being sent
+_NOTHING_VALUE = "01111111"                  # idle — nothing being sent
 _NO_STORE = {"Cache-Control": "no-store"}
 
 # ---------- Text Panel endpoints ----------
@@ -167,6 +167,7 @@ _TYPEWRITER_STATE = {
     "text": "type on the site lol",
     "pos": 0,
     "padding": "        ",   # 8 trailing spaces = pause before loop
+    "pending_space": False,   # when True, send one space before next char
 }
 
 def _char_to_value(ch: str) -> str:
@@ -180,10 +181,14 @@ class TypewriterBody(BaseModel):
 
 @api.post("/typewriter", operation_id="typewriter_set")
 def typewriter_set(body: TypewriterBody):
-    text = body.text[:500]
+    text = body.text[:499]
     with _TYPEWRITER_LOCK:
+        # was the panel idle before this? (empty text = idle)
+        was_idle = not _TYPEWRITER_STATE["text"]
         _TYPEWRITER_STATE["text"] = text
         _TYPEWRITER_STATE["pos"] = 0
+        # only need a gap if we're waking up from idle into real text
+        _TYPEWRITER_STATE["pending_space"] = was_idle and bool(text)
     return JSONResponse({"status": "ok", "length": len(text)}, headers=_NO_STORE)
 
 @api.get("/typewriter/current", operation_id="typewriter_current")
@@ -192,6 +197,10 @@ def typewriter_current():
         text = _TYPEWRITER_STATE["text"]
         if not text:
             return JSONResponse({"value": _NOTHING_VALUE}, headers=_NO_STORE)
+        # one space after idle before new text starts, so messages don't run together
+        if _TYPEWRITER_STATE["pending_space"]:
+            _TYPEWRITER_STATE["pending_space"] = False
+            return JSONResponse({"value": _SPACE_VALUE}, headers=_NO_STORE)
         buffer = text + _TYPEWRITER_STATE["padding"]
         pos = _TYPEWRITER_STATE["pos"]
         ch = buffer[pos]
@@ -204,6 +213,7 @@ def typewriter_status():
         text = _TYPEWRITER_STATE["text"]
         pos = _TYPEWRITER_STATE["pos"]
         padding = _TYPEWRITER_STATE["padding"]
+        pending = _TYPEWRITER_STATE["pending_space"]
     buffer = text + padding
     return JSONResponse({
         "text": text,
@@ -211,6 +221,7 @@ def typewriter_status():
         "pos": pos,
         "buffer_length": len(buffer),
         "current_char": buffer[pos] if text else None,
+        "pending_space": pending,
         "special": {
             "space": _SPACE_VALUE,
             "nothing": _NOTHING_VALUE,
@@ -222,6 +233,7 @@ def typewriter_clear():
     with _TYPEWRITER_LOCK:
         _TYPEWRITER_STATE["text"] = ""
         _TYPEWRITER_STATE["pos"] = 0
+        _TYPEWRITER_STATE["pending_space"] = False
     return JSONResponse({"status": "cleared"}, headers=_NO_STORE)
 
 # ---------- Mount router ----------
