@@ -918,3 +918,131 @@ table.tt tbody tr.shift-divider td {
     opacity: 0.5;
     border-style: dashed;
 }
+
+/* ---------- Image panel page ---------- */
+
+.image-preview {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 32px;
+    margin-bottom: 60px;
+    animation: fadeUp 0.6s 0.1s ease both;
+}
+.image-preview[hidden] { display: none; }
+
+.image-grid-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 24px;
+    backdrop-filter: blur(12px);
+}
+
+.image-grid-label {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin: 0 0 16px;
+    text-align: center;
+}
+
+.image-grid-meta {
+    color: var(--text-faint);
+    font-size: 0.7rem;
+    margin-left: 8px;
+}
+
+.image-grid {
+    display: grid;
+    gap: 2px;
+    max-width: 400px;
+    margin: 0 auto 16px;
+    background: var(--bg);
+    padding: 8px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    aspect-ratio: 1;
+}
+
+.image-grid-32 { max-width: 500px; }
+
+.grid-cell {
+    background: #1a1a1a;
+    border-radius: 1px;
+    aspect-ratio: 1;
+    transition: background 0.15s;
+}
+.grid-cell.on {
+    background: #ffffff;
+    box-shadow: 0 0 4px rgba(255,255,255,0.4);
+}
+
+.image-actions {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.image-endpoint {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    color: var(--text-dim);
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 4px 10px;
+}
+
+/* ---------- Drawing canvas ---------- */
+
+.draw-canvas {
+    display: grid;
+    grid-template-columns: repeat(16, 1fr);
+    gap: 2px;
+    width: 100%;
+    max-width: 380px;
+    margin: 0 auto 20px;
+    background: var(--bg);
+    padding: 8px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    aspect-ratio: 1;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+.draw-cell {
+    background: #1a1a1a;
+    border-radius: 1px;
+    aspect-ratio: 1;
+    cursor: pointer;
+    transition: background 0.08s;
+}
+.draw-cell.on {
+    background: #ffffff;
+}
+.draw-cell:hover {
+    outline: 1px solid rgba(255, 255, 255, 0.25);
+}
+
+.draw-actions {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+}
+.draw-actions .btn {
+    padding: 10px 16px;
+    font-size: 0.82rem;
+}
+
+@media (max-width: 640px) {
+    .draw-canvas { max-width: 100%; }
+    .draw-actions .btn { padding: 9px 14px; font-size: 0.78rem; }
+}
