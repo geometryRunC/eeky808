@@ -125,6 +125,30 @@ def txtpanel_char(char: str):
         return {"char": char, **_ALPHABET[char]}
     raise HTTPException(status_code=404, detail=f"Character {char!r} not in truth table")
 
+# ---------- Text panel tool ----------
+@app.get("/tool", response_class=HTMLResponse)
+def tool_page(request: Request):
+    context = {"request": request, "title": "text panel tool - eeky808"}
+    return templates.TemplateResponse(request, "tool.html", context)
+
+@api.get("/txtpanel/inputs/{char}", operation_id="txtpanel_inputs")
+def txtpanel_inputs(char: str):
+    """Get the 7 input bits for a character in panel layout: 0{7}{1}{2}{3}{4}{5}{6}."""
+    if char not in _ALPHABET:
+        raise HTTPException(status_code=404, detail=f"Character {char!r} not in truth table")
+    for shift, i5, i4, i3, i2, i1, i0, c in TEXT_PANEL_TRUTH:
+        if c == char and c != "":
+            return {
+                "char": char,
+                "value": to_8bit(shift, i5, i4, i3, i2, i1, i0),
+                "inputs": {
+                    "1": i5, "2": i4, "3": i3,
+                    "4": i2, "5": i1, "6": i0,
+                    "7": shift,
+                },
+            }
+    raise HTTPException(status_code=404, detail=f"Character {char!r} not found")
+
 # ---------- Typewriter ----------
 _TYPEWRITER_LOCK = threading.Lock()
 _TYPEWRITER_STATE = {
