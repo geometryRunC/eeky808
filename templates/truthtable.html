@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{{ title }}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+    <div class="bg-orb bg-orb-1"></div>
+    <div class="bg-orb bg-orb-2"></div>
+    <div class="bg-orb bg-orb-3"></div>
+
+    <main class="container">
+        <header class="hero">
+            <div class="badge">truth table</div>
+            <h1 class="hero-title">truth table</h1>
+            <p class="hero-tagline">all 128 rows of the text panel</p>
+            <div class="hero-actions">
+                <a class="btn btn-ghost" href="/">&larr; back home</a>
+                <a class="btn btn-ghost" href="/tool">text panel tool</a>
+            </div>
+        </header>
+
+        <section class="tt-controls">
+            <input
+                type="text"
+                id="tt-search"
+                class="tt-search"
+                placeholder="search char or value..."
+                autocomplete="off"
+            />
+            <label class="tt-toggle">
+                <input type="checkbox" id="tt-show-empty" />
+                show empty rows
+            </label>
+            <span class="tt-count" id="tt-count">&ndash;</span>
+        </section>
+
+        <div class="tt-wrap">
+            <div class="tt-scroll">
+                <table class="tt">
+                    <thead>
+                        <tr>
+                            <th>shift</th>
+                            <th>i5</th>
+                            <th>i4</th>
+                            <th>i3</th>
+                            <th>i2</th>
+                            <th>i1</th>
+                            <th>i0</th>
+                            <th></th>
+                            <th>char</th>
+                            <th>value</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tt-body">
+                        <tr><td colspan="10" class="tt-loading">loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <p class="tt-legend">
+            <span class="tt-legend-bit">1</span> = input high &middot;
+            <span class="tt-legend-bit tt-legend-bit-dim">0</span> = input low &middot;
+            value = <code>0{7}{1}{2}{3}{4}{5}{6}</code>
+        </p>
+
+        <footer class="footer">
+            <span>inspired by <a href="https://www.roblox.com/games/9527099245/Build-Logic" target="_blank" rel="noopener">build logic on roblox</a> by tomtom4500</span>
+            <span>&middot;</span>
+            <a href="/">home</a>
+            <span>&middot;</span>
+            <a href="/docs">/docs</a>
+        </footer>
+    </main>
+
+    <script>
+        const searchBox = document.getElementById('tt-search');
+        const showEmptyBox = document.getElementById('tt-show-empty');
+        const tbody = document.getElementById('tt-body');
+        const countEl = document.getElementById('tt-count');
+
+        let allRows = [];
+
+        async function load() {
+            try {
+                const res = await fetch('/api/txtpanel/full');
+                allRows = await res.json();
+                render();
+            } catch (e) {
+                tbody.innerHTML = '<tr><td colspan="10" class="tt-loading">could not load truth table</td></tr>';
+            }
+        }
+
+        function makeBitCell(value) {
+            const td = document.createElement('td');
+            td.className = 'tt-bit' + (value === 1 ? ' tt-bit-on' : '');
+            td.textContent = value;
+            return td;
+        }
+
+        function makeCharCell(ch) {
+            const td = document.createElement('td');
+            td.className = 'tt-char';
+            if (ch === '') {
+                const s = document.createElement('span');
+                s.className = 'tt-empty';
+                s.textContent = '(empty)';
+                td.appendChild(s);
+            } else if (ch === ' ') {
+                const s = document.createElement('span');
+                s.className = 'tt-space';
+                s.textContent = '\u2423';   // ␣
+                td.appendChild(s);
+            } else {
+                td.textContent = ch;
+            }
+            return td;
+        }
+
+        function render() {
+            const query = searchBox.value.trim().toLowerCase();
+            const includeEmpty = showEmptyBox.checked;
+
+            tbody.innerHTML = '';
+            let shown = 0;
+
+            for (let i = 0; i < allRows.length; i++) {
+                const row = allRows[i];
+
+                if (!includeEmpty && row.char === '') continue;
+                if (query) {
+                    const matchChar = row.char.toLowerCase().includes(query);
+                    const matchValue = row.value.includes(query);
+                    if (!matchChar && !matchValue) continue;
+                }
+
+                const tr = document.createElement('tr');
+                if (i > 0 && allRows[i - 1].shift !== row.shift) {
+                    tr.classList.add('shift-divider');
+                }
+
+                tr.appendChild(makeBitCell(row.shift));
+                tr.appendChild(makeBitCell(row.i5));
+                tr.appendChild(makeBitCell(row.i4));
+                tr.appendChild(makeBitCell(row.i3));
+                tr.appendChild(makeBitCell(row.i2));
+                tr.appendChild(makeBitCell(row.i1));
+                tr.appendChild(makeBitCell(row.i0));
+
+                const arrow = document.createElement('td');
+                arrow.className = 'tt-arrow';
+                arrow.textContent = '\u2192';   // →
+                tr.appendChild(arrow);
+
+                tr.appendChild(makeCharCell(row.char));
+
+                const value = document.createElement('td');
+                value.className = 'tt-value';
+                value.textContent = row.value;
+                tr.appendChild(value);
+
+                tbody.appendChild(tr);
+                shown++;
+            }
+
+            if (shown === 0) {
+                tbody.innerHTML = '<tr><td colspan="10" class="tt-loading">nothing matches</td></tr>';
+            }
+
+            countEl.textContent = shown + ' / ' + allRows.length + ' rows';
+        }
+
+        searchBox.addEventListener('input', render);
+        showEmptyBox.addEventListener('change', render);
+        load();
+    </script>
+</body>
+  </html>
