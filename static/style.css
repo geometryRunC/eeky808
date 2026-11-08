@@ -900,3 +900,21 @@ table.tt tbody tr.shift-divider td {
     }
     .panel-live-display { gap: 12px; }
 }
+
+/* Live pulse on value change */
+@keyframes panel-pulse {
+    0%   { transform: scale(1);    box-shadow: 0 0 0 0 rgba(255,255,255,0.5); }
+    40%  { transform: scale(1.06); box-shadow: 0 0 0 12px rgba(255,255,255,0); }
+    100% { transform: scale(1);    box-shadow: 0 0 0 0 rgba(255,255,255,0); }
+}
+.panel-live-char.pulse,
+.panel-live-value.pulse {
+    animation: panel-pulse 0.4s ease;
+}
+
+/* Dim when panel isn't polling */
+.panel-live-char.state-inactive,
+.panel-live-value.state-inactive {
+    opacity: 0.5;
+    border-style: dashed;
+}
