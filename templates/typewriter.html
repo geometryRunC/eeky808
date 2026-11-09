@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{{ title }}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+    <div class="bg-orb bg-orb-1"></div>
+    <div class="bg-orb bg-orb-2"></div>
+    <div class="bg-orb bg-orb-3"></div>
+
+    <main class="container">
+        <header class="hero">
+            <div class="badge">typewriter</div>
+            <h1 class="hero-title">typewriter</h1>
+            <p class="hero-tagline">session-based text for your panels</p>
+            <div class="hero-actions">
+                <a class="btn btn-ghost" href="/">&larr; back home</a>
+            </div>
+        </header>
+
+        <section class="typewriter">
+            <h2 class="typewriter-title">your session</h2>
+            <p class="typewriter-desc">put this in your http transmitter header</p>
+
+            <div class="session-box">
+                <span class="session-label">sid</span>
+                <code class="session-sid" id="session-sid">----</code>
+                <button type="button" class="btn btn-ghost session-copy" id="copy-sid">copy</button>
+                <button type="button" class="btn btn-ghost session-copy" id="new-sid">new</button>
+            </div>
+            <p class="session-hint">
+                header: <code>sid: <span id="sid-inline">----</span></code>
+            </p>
+
+            <div class="session-join">
+                <label for="join-input" class="session-label">join a session</label>
+                <input
+                    type="text"
+                    id="join-input"
+                    class="session-input"
+                    maxlength="4"
+                    placeholder="abcd"
+                    autocomplete="off"
+                    spellcheck="false"
+                />
+                <button type="button" class="btn btn-primary" id="join-btn">join -&gt;</button>
+            </div>
+            <p class="typewriter-status" id="copy-status"></p>
+        </section>
+
+        <section class="typewriter">
+            <h2 class="typewriter-title">type</h2>
+            <p class="typewriter-desc">type something and it shows up on the panel one letter at a time.</p>
+            <form class="typewriter-form" id="typewriter-form">
+                <input type="text" id="typewriter-input" class="typewriter-input" maxlength="499" placeholder="hello world..." autocomplete="off" />
+                <button type="submit" class="btn btn-primary">send -&gt;</button>
+            </form>
+            <p class="typewriter-status" id="typewriter-status">press enter to send</p>
+
+            <div class="panel-live">
+                <p class="panel-live-label">live panel view</p>
+                <div class="panel-live-display">
+                    <span class="panel-live-char" id="panel-live-char">&ndash;</span>
+                    <span class="panel-live-value" id="panel-live-value">--------</span>
+                </div>
+                <p class="panel-live-state" id="panel-live-state">connecting...</p>
+                <p class="panel-live-meta" id="panel-live-meta"></p>
+            </div>
+
+            <button type="button" class="btn btn-ghost" id="clear-btn" style="margin-top: 20px;">clear text</button>
+        </section>
+
+        <footer class="footer">
+            <span>inspired by <a href="https://www.roblox.com/games/9527099245/Build-Logic" target="_blank" rel="noopener">build logic on roblox</a> by tomtom4500</span>
+            <span>&middot;</span>
+            <a href="/">home</a>
+            <span>&middot;</span>
+            <a href="/docs">/docs</a>
+        </footer>
+    </main>
+
+    <script src="/static/typewriter.js" defer></script>
+</body>
+</html>
