@@ -39,17 +39,19 @@
             </p>
 
             <div class="session-join">
-                <label for="join-input" class="session-label">join a session</label>
-                <input
-                    type="text"
-                    id="join-input"
-                    class="session-input"
-                    maxlength="4"
-                    placeholder="abcd"
-                    autocomplete="off"
-                    spellcheck="false"
-                />
-                <button type="button" class="btn btn-primary" id="join-btn">join -&gt;</button>
+                <span class="session-join-label">or join a session</span>
+                <div class="session-join-input-wrap">
+                    <input
+                        type="text"
+                        id="join-input"
+                        class="session-input"
+                        maxlength="4"
+                        placeholder="abcd"
+                        autocomplete="off"
+                        spellcheck="false"
+                    />
+                    <button type="button" class="btn btn-primary session-join-btn" id="join-btn">join -&gt;</button>
+                </div>
             </div>
             <p class="typewriter-status" id="copy-status"></p>
         </section>
