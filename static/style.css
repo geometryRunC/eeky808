@@ -1290,3 +1290,41 @@ html { scrollbar-color: #555555 transparent; }
         text-align: left;
     }
 }
+
+/* ---------- Session join row ---------- */
+
+.session-join {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border);
+}
+
+.session-input {
+    width: 110px;
+    padding: 10px 14px;
+    text-align: center;
+    font-family: var(--font-mono);
+    font-size: 1.1rem;
+    font-weight: 500;
+    letter-spacing: 0.15em;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: #fff;
+    outline: none;
+    text-transform: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+.session-input:focus {
+    border-color: var(--a1);
+    box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.11), 0 0 28px -6px rgba(255, 255, 255, 0.33);
+}
+.session-input::placeholder {
+    color: var(--text-faint);
+    letter-spacing: 0.1em;
+}
