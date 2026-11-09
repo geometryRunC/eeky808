@@ -59,6 +59,13 @@ def image_page(request: Request):
 def test_panel16_page(request: Request):
     return templates.TemplateResponse(request, "test_panel16.html", {"request": request, "title": "panel test - 16x16"})
 
+@app.get("/decode", response_class=HTMLResponse)
+def decode_page(request: Request):
+    return templates.TemplateResponse(request, "decode.html", {
+        "request": request,
+        "title": "block decoder - eeky808",
+    })
+
 # ---------- APIs ----------
 api = APIRouter(prefix="/api")
 
@@ -412,6 +419,87 @@ def panel_clear():
         _IMAGE_STATE["32"]["bits"] = ""
         _IMAGE_STATE["32"]["pos"] = {1: 0, 2: 0, 3: 0, 4: 0}
     return JSONResponse({"status": "cleared"}, headers=_NO_STORE)
+
+# ---------- Block decoder (Build Logic) ----------
+_BASE71 = list("0123456789abcdefghijklmnopqrstuvwxyz"
+               "ABCDEFGHIJKLMNOPQRSTUVWXYZ!@$%?&<()")
+
+_VALID_BLOCK_TYPES = {"speaker", "keypad", "legacykeypad"}
+
+def _decode_base71(value: str) -> int:
+    """Decode a base-71 string into an integer (matches the JS decoder)."""
+    out = 0
+    for i, ch in enumerate(reversed(value)):
+        out += _BASE71.index(ch) * (71 ** i)
+    return out
+
+def _decode_chunks(value: str) -> list[str]:
+    """Split an encoded block value into length-prefixed chunks."""
+    chunks = []
+    idx = 0
+    while idx < len(value):
+        length_char = value[idx]
+        length = _BASE71.index(length_char) + 1
+        idx += 1
+        chunks.append(value[idx:idx + length])
+        idx += length
+    return chunks
+
+def _decode_block(block_type: str, value: str) -> dict:
+    """Decode a block value into its fields. Mirrors the JS decoder exactly."""
+    decoded = _decode_chunks(value)
+    if len(decoded) < 2:
+        raise ValueError(f"expected at least 2 chunks, got {len(decoded)}")
+
+    result = {"your input": value}
+
+    if block_type == "speaker":
+        result["looped"] = "ON" if decoded[0] == "1" else "OFF"
+        result["sound id"] = _decode_base71(decoded[1])
+        result["volume"] = decoded[2]
+        result["pitch"] = decoded[3]
+
+    elif block_type == "keypad":
+        result["unlock on enter"] = "ON" if decoded[0] == "1" else "OFF"
+        result["unlocked time"] = decoded[1]
+        code_digits = decoded[2] if len(decoded) > 2 else ""
+        joined = ""
+        for part in code_digits.split(":"):
+            s = str(_decode_base71(part))
+            joined += s[1:]   # drop first char, matches JS substring(1)
+        result["code digits"] = joined
+        result["show key press"] = "ON" if decoded[3] == "1" else "OFF"
+        result["button hold time"] = decoded[4]
+
+    elif block_type == "legacykeypad":
+        result["unlock on enter"] = "ON" if decoded[0] == "1" else "OFF"
+        result["unlocked time"] = decoded[1]
+        result["code digits"] = decoded[2]
+        result["show key press"] = "ON" if decoded[3] == "1" else "OFF"
+        result["button hold time"] = decoded[4]
+
+    return result
+
+class DecodeBody(BaseModel):
+    type: str
+    value: str
+
+@api.post("/decode", operation_id="decode_block")
+def decode_block(body: DecodeBody):
+    """Decode a Build Logic block value. Returns the parsed fields."""
+    if body.type not in _VALID_BLOCK_TYPES:
+        raise HTTPException(
+            400,
+            f"invalid block type {body.type!r} — must be one of {sorted(_VALID_BLOCK_TYPES)}",
+        )
+    try:
+        result = _decode_block(body.type, body.value)
+    except ValueError as e:
+        raise HTTPException(400, f"could not decode: {e}")
+    except Exception as e:
+        raise HTTPException(400, f"decode error: {e}")
+
+    return JSONResponse(result, headers=_NO_STORE)
 
 # ---------- Mount router ----------
 app.include_router(api)
