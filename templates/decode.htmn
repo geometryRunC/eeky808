@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{{ title }}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+    <div class="bg-orb bg-orb-1"></div>
+    <div class="bg-orb bg-orb-2"></div>
+    <div class="bg-orb bg-orb-3"></div>
+
+    <main class="container">
+        <header class="hero">
+            <div class="badge">build logic block decoder</div>
+            <h1 class="hero-title">decoder</h1>
+            <p class="hero-tagline">paste a block value, get its fields back</p>
+            <div class="hero-actions">
+                <a class="btn btn-ghost" href="/">&larr; back home</a>
+                <a class="btn btn-ghost" href="/docs">api docs</a>
+            </div>
+        </header>
+
+        <section class="typewriter">
+            <h2 class="typewriter-title">decode a block</h2>
+            <p class="typewriter-desc">pick the block type, paste the encoded value</p>
+
+            <form class="decode-form" id="decode-form">
+                <div class="decode-field">
+                    <label class="decode-label" for="decode-type">block type</label>
+                    <select id="decode-type" class="decode-select">
+                        <option value="speaker">speaker</option>
+                        <option value="keypad">keypad</option>
+                        <option value="legacykeypad">legacykeypad</option>
+                    </select>
+                </div>
+
+                <div class="decode-field">
+                    <label class="decode-label" for="decode-value">encoded value</label>
+                    <textarea
+                        id="decode-value"
+                        class="decode-textarea"
+                        placeholder="paste the block value here..."
+                        rows="3"
+                        spellcheck="false"
+                        autocomplete="off"
+                    ></textarea>
+                </div>
+
+                <button type="submit" class="btn btn-primary">decode -&gt;</button>
+            </form>
+
+            <p class="typewriter-status" id="decode-status">pick a type and paste a value</p>
+
+            <div class="decode-output" id="decode-output" hidden></div>
+        </section>
+
+        <footer class="footer">
+            <span>inspired by <a href="https://www.roblox.com/games/9527099245/Build-Logic" target="_blank" rel="noopener">build logic on roblox</a> by tomtom4500</span>
+            <span>&middot;</span>
+            <a href="/">home</a>
+            <span>&middot;</span>
+            <a href="/docs">/docs</a>
+        </footer>
+    </main>
+
+    <script src="/static/decode.js" defer></script>
+</body>
+</html>
