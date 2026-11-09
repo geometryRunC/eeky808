@@ -163,17 +163,19 @@ def txtpanel_char(char: str):
         return {"char": char, **_ALPHABET[char]}
     raise HTTPException(404, f"Character {char!r} not in truth table")
 
-# ---------- Typewriter (with SID sessions) ----------
-_SID_RE = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
+# ---------- Typewriter (4-char SID sessions) ----------
+_SID_RE = re.compile(r"^[A-Za-z0-9]{4}$")
 _TYPEWRITER_LOCK = threading.Lock()
 _TYPEWRITER_SESSIONS: dict = {}
-_TYPEWRITER_MAX_SESSIONS = 200
+_TYPEWRITER_MAX_SESSIONS = 500
 
 def _validate_sid(sid: Optional[str]) -> str:
     if not sid:
         return "default"
+    if sid == "default":
+        return sid
     if not _SID_RE.match(sid):
-        raise HTTPException(400, "sid must be 1-64 chars: letters, digits, dash, underscore")
+        raise HTTPException(400, "sid must be exactly 4 characters (letters or digits)")
     return sid
 
 def _session(sid: str) -> dict:
@@ -282,6 +284,244 @@ def typewriter_status(sid: Optional[str] = Header(None)):
 @api.post("/typewriter/clear", operation_id="typewriter_clear")
 def typewriter_clear(sid: Optional[str] = Header(None)):
     sid = _validate_sid(sid)
+    with _TYPEWRITER_LOCK:
+        state = _session(sid)
+        state["text"] = ""
+        state["pos"] = 0
+        state["pending_space"] = False
+        state["last_visible_char"] = None
+        state["last_visible_value"] = None
+    return JSONResponse({"status": "cleared", "sid": sid}, headers=_NO_STORE)
+
+# ---------- Image panel ----------
+_IMAGE_LOCK = threading.Lock()
+_IMAGE_STATE = {
+    "16": {"bits": "", "pos": 0},
+    "32": {"bits": "", "pos": {1: 0, 2: 0, 3: 0, 4: 0}},
+}
+
+_PANEL_QUADRANTS = {
+    1: (range(0, 16),  range(0, 16)),
+    2: (range(0, 16),  range(16, 32)),
+    3: (range(16, 32), range(0, 16)),
+    4: (range(16, 32), range(16, 32)),
+}
+
+def _process_image(data: bytes, size: int) -> str:
+    if not _PIL_AVAILABLE:
+        raise HTTPException(500, "pillow not installed on server")
+    try:
+        img = Image.open(io.BytesIO(data)).convert("L")
+    except Exception as e:
+        raise HTTPException(400, f"could not read image: {e}")
+    img = ImageOps.fit(img, (size, size), method=Image.Resampling.LANCZOS)
+    img = img.convert("1", dither=Image.Dither.FLOYDSTEINBERG)
+    px = img.load()
+    return "".join("1" if px[x, y] > 0 else "0" for y in range(size) for x in range(size))
+
+def _get_quadrant_bits(bits32: str, quadrant: int) -> str:
+    rows, cols = _PANEL_QUADRANTS[quadrant]
+    return "".join(bits32[y * 32 + x] for y in rows for x in cols)
+
+@api.post("/panel/upload", operation_id="panel_upload")
+async def panel_upload(file: UploadFile = File(...)):
+    if not _PIL_AVAILABLE:
+        raise HTTPException(500, "pillow not installed on server")
+    data = await file.read()
+    if len(data) > 10 * 1024 * 1024:
+        raise HTTPException(400, "image too big (max 10 MB)")
+    bits16 = _process_image(data, 16)
+    bits32 = _process_image(data, 32)
+    with _IMAGE_LOCK:
+        _IMAGE_STATE["16"]["bits"] = bits16
+        _IMAGE_STATE["16"]["pos"] = 0
+        _IMAGE_STATE["32"]["bits"] = bits32
+        _IMAGE_STATE["32"]["pos"] = {1: 0, 2: 0, 3: 0, 4: 0}
+    return JSONResponse({"status": "ok", "size16": len(bits16), "size32": len(bits32)}, headers=_NO_STORE)
+
+class DrawBody(BaseModel):
+    bits: str
+
+@api.post("/panel/draw", operation_id="panel_draw")
+def panel_draw(body: DrawBody):
+    bits = (body.bits or "").strip()
+    if len(bits) != 256 or any(c not in "01" for c in bits):
+        raise HTTPException(400, "bits must be exactly 256 chars of '0' or '1'")
+    rows32 = []
+    for y in range(16):
+        row = bits[y * 16:(y + 1) * 16]
+        d = "".join(c * 2 for c in row)
+        rows32.append(d)
+        rows32.append(d)
+    bits32 = "".join(rows32)
+    with _IMAGE_LOCK:
+        _IMAGE_STATE["16"]["bits"] = bits
+        _IMAGE_STATE["16"]["pos"] = 0
+        _IMAGE_STATE["32"]["bits"] = bits32
+        _IMAGE_STATE["32"]["pos"] = {1: 0, 2: 0, 3: 0, 4: 0}
+    return JSONResponse({"status": "ok"}, headers=_NO_STORE)
+
+_SMILEY_16 = (
+    "0000000000000000"
+    "0000000000000000"
+    "0000111111110000"
+    "0011111111111100"
+    "0111111111111110"
+    "0111111111111110"
+    "1111111111111111"
+    "1111001111001111"
+    "1111001111001111"
+    "1111111111111111"
+    "1111111111111111"
+    "1111100000011111"
+    "0111111111111110"
+    "0011111111111100"
+    "0000111111110000"
+    "0000000000000000"
+)
+
+@api.post("/panel/test-smiley", operation_id="panel_test_smiley")
+def panel_test_smiley():
+    bits = _SMILEY_16
+    rows32 = []
+    for y in range(16):
+        row = bits[y * 16:(y + 1) * 16]
+        d = "".join(c * 2 for c in row)
+        rows32.append(d)
+        rows32.append(d)
+    bits32 = "".join(rows32)
+    with _IMAGE_LOCK:
+        _IMAGE_STATE["16"]["bits"] = bits
+        _IMAGE_STATE["16"]["pos"] = 0
+        _IMAGE_STATE["32"]["bits"] = bits32
+        _IMAGE_STATE["32"]["pos"] = {1: 0, 2: 0, 3: 0, 4: 0}
+    return JSONResponse({"status": "ok", "hint": "GET /api/panel/current 256x to stream it"}, headers=_NO_STORE)
+
+@api.get("/panel/test-smiley", operation_id="panel_test_smiley_bits")
+def panel_test_smiley_bits():
+    return JSONResponse({"bits": _SMILEY_16, "size": 16, "length": 256}, headers=_NO_STORE)
+
+@api.get("/panel/current", operation_id="panel_current")
+def panel_current():
+    with _IMAGE_LOCK:
+        bits = _IMAGE_STATE["16"]["bits"]
+        if not bits:
+            return JSONResponse({"value": _NOTHING_VALUE}, headers=_NO_STORE)
+        pos = _IMAGE_STATE["16"]["pos"]
+        if pos >= len(bits):
+            return JSONResponse({"value": _NOTHING_VALUE}, headers=_NO_STORE)
+        bit = bits[pos]
+        _IMAGE_STATE["16"]["pos"] = pos + 1
+    return JSONResponse({"value": f"0000000{bit}"}, headers=_NO_STORE)
+
+@api.get("/panel/panel{quadrant}/current", operation_id="panel_quadrant_current")
+def panel_quadrant_current(quadrant: int):
+    if quadrant not in _PANEL_QUADRANTS:
+        raise HTTPException(404, "no such panel (must be 1-4)")
+    with _IMAGE_LOCK:
+        bits32 = _IMAGE_STATE["32"]["bits"]
+        if not bits32:
+            return JSONResponse({"value": _NOTHING_VALUE}, headers=_NO_STORE)
+        qbits = _get_quadrant_bits(bits32, quadrant)
+        pos = _IMAGE_STATE["32"]["pos"][quadrant]
+        if pos >= len(qbits):
+            return JSONResponse({"value": _NOTHING_VALUE}, headers=_NO_STORE)
+        bit = qbits[pos]
+        _IMAGE_STATE["32"]["pos"][quadrant] = pos + 1
+    return JSONResponse({"value": f"0000000{bit}"}, headers=_NO_STORE)
+
+@api.get("/panel/status", operation_id="panel_status")
+def panel_status():
+    with _IMAGE_LOCK:
+        return JSONResponse({
+            "16": {"bits": _IMAGE_STATE["16"]["bits"], "length": len(_IMAGE_STATE["16"]["bits"]), "pos": _IMAGE_STATE["16"]["pos"]},
+            "32": {"bits": _IMAGE_STATE["32"]["bits"], "length": len(_IMAGE_STATE["32"]["bits"]), "pos": dict(_IMAGE_STATE["32"]["pos"])},
+        }, headers=_NO_STORE)
+
+@api.post("/panel/replay", operation_id="panel_replay")
+def panel_replay():
+    with _IMAGE_LOCK:
+        _IMAGE_STATE["16"]["pos"] = 0
+        _IMAGE_STATE["32"]["pos"] = {1: 0, 2: 0, 3: 0, 4: 0}
+    return JSONResponse({"status": "replay"}, headers=_NO_STORE)
+
+@api.post("/panel/clear", operation_id="panel_clear")
+def panel_clear():
+    with _IMAGE_LOCK:
+        _IMAGE_STATE["16"]["bits"] = ""
+        _IMAGE_STATE["16"]["pos"] = 0
+        _IMAGE_STATE["32"]["bits"] = ""
+        _IMAGE_STATE["32"]["pos"] = {1: 0, 2: 0, 3: 0, 4: 0}
+    return JSONResponse({"status": "cleared"}, headers=_NO_STORE)
+
+# ---------- Block decoder ----------
+_BASE71 = list("0123456789abcdefghijklmnopqrstuvwxyz"
+               "ABCDEFGHIJKLMNOPQRSTUVWXYZ!@$%?&<()")
+_VALID_BLOCK_TYPES = {"speaker", "keypad", "legacykeypad"}
+
+def _decode_base71(value: str) -> int:
+    out = 0
+    for i, ch in enumerate(reversed(value)):
+        out += _BASE71.index(ch) * (71 ** i)
+    return out
+
+def _decode_chunks(value: str) -> list:
+    chunks = []
+    idx = 0
+    while idx < len(value):
+        length = _BASE71.index(value[idx]) + 1
+        idx += 1
+        chunks.append(value[idx:idx + length])
+        idx += length
+    return chunks
+
+def _decode_block(block_type: str, value: str) -> dict:
+    decoded = _decode_chunks(value)
+    if len(decoded) < 2:
+        raise ValueError(f"expected at least 2 chunks, got {len(decoded)}")
+    result = {"your input": value}
+
+    if block_type == "speaker":
+        result["looped"] = "ON" if decoded[0] == "1" else "OFF"
+        result["sound id"] = _decode_base71(decoded[1])
+        result["volume"] = decoded[2]
+        result["pitch"] = decoded[3]
+    elif block_type == "keypad":
+        result["unlock on enter"] = "ON" if decoded[0] == "1" else "OFF"
+        result["unlocked time"] = decoded[1]
+        code_digits = decoded[2] if len(decoded) > 2 else ""
+        joined = ""
+        for part in code_digits.split(":"):
+            s = str(_decode_base71(part))
+            joined += s[1:]
+        result["code digits"] = joined
+        result["show key press"] = "ON" if decoded[3] == "1" else "OFF"
+        result["button hold time"] = decoded[4]
+    elif block_type == "legacykeypad":
+        result["unlock on enter"] = "ON" if decoded[0] == "1" else "OFF"
+        result["unlocked time"] = decoded[1]
+        result["code digits"] = decoded[2]
+        result["show key press"] = "ON" if decoded[3] == "1" else "OFF"
+        result["button hold time"] = decoded[4]
+
+    return result
+
+class DecodeBody(BaseModel):
+    type: str
+    value: str
+
+@api.post("/decode", operation_id="decode_block")
+def decode_block(body: DecodeBody):
+    if body.type not in _VALID_BLOCK_TYPES:
+        raise HTTPException(400, f"invalid block type {body.type!r}")
+    try:
+        result = _decode_block(body.type, body.value)
+    except Exception as e:
+        raise HTTPException(400, f"decode error: {e}")
+    return JSONResponse(result, headers=_NO_STORE)
+
+# ---------- Mount router ----------
+app.include_router(api)(sid)
     with _TYPEWRITER_LOCK:
         state = _session(sid)
         state["text"] = ""
