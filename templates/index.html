@@ -26,72 +26,73 @@
             </div>
         </header>
 
-        <section class="typewriter">
-            <h2 class="typewriter-title">typewriter</h2>
-            <p class="typewriter-desc">type something and it shows up on the panel one letter at a time.</p>
-            <form class="typewriter-form" id="typewriter-form">
-                <input type="text" id="typewriter-input" class="typewriter-input" maxlength="499" placeholder="hello world..." autocomplete="off" />
-                <button type="submit" class="btn btn-primary">send -&gt;</button>
-            </form>
-            <p class="typewriter-status" id="typewriter-status">press enter to send</p>
-
-            <div class="panel-live">
-                <p class="panel-live-label">live panel view</p>
-                <div class="panel-live-display">
-                    <span class="panel-live-char" id="panel-live-char">&ndash;</span>
-                    <span class="panel-live-value" id="panel-live-value">--------</span>
-                </div>
-                <p class="panel-live-state" id="panel-live-state">connecting...</p>
-                <p class="panel-live-meta" id="panel-live-meta"></p>
-            </div>
-        </section>
-
         <section class="grid">
+            <a class="card" href="/typewriter">
+                <h2 class="card-title">typewriter</h2>
+                <p class="card-desc">session-based text for panels. put a sid in your http header, type stuff, watch it type.</p>
+                <span class="card-path">/typewriter</span>
+            </a>
+
             <a class="card" href="/tool">
                 <h2 class="card-title">text panel tool</h2>
                 <p class="card-desc">pick a character, get its 7 inputs and 8-bit output.</p>
                 <span class="card-path">/tool</span>
             </a>
+
             <a class="card" href="/truthtable">
                 <h2 class="card-title">truth table</h2>
                 <p class="card-desc">all 128 rows, formatted and searchable.</p>
                 <span class="card-path">/truthtable</span>
             </a>
-            <a class="card" href="/decode">
-                <h2 class="card-title">block decoder</h2>
-                <p class="card-desc">paste a build logic block value, get its fields back.</p>
-                <span class="card-path">/decode</span>
-            </a>
+
             <a class="card" href="/image">
                 <h2 class="card-title">image panel</h2>
                 <p class="card-desc">draw or upload an image, dither it to 16x16 or 32x32.</p>
                 <span class="card-path">/image</span>
             </a>
+
+            <a class="card" href="/test/panel16">
+                <h2 class="card-title">panel test (16x16)</h2>
+                <p class="card-desc">see what the panel sees one pixel at a time. step through the stream.</p>
+                <span class="card-path">/test/panel16</span>
+            </a>
+
+            <a class="card" href="/decode">
+                <h2 class="card-title">block decoder</h2>
+                <p class="card-desc">paste a build logic block value, get its fields back.</p>
+                <span class="card-path">/decode</span>
+            </a>
+
             <a class="card" href="/api/txtpanel">
                 <h2 class="card-title">all the txt panel letters</h2>
                 <p class="card-desc">every character with its 8 bit code.</p>
                 <span class="card-path">/api/txtpanel</span>
             </a>
+
             <a class="card" href="/api/txtpanel/full">
                 <h2 class="card-title">full raw table</h2>
                 <p class="card-desc">all 128 rows with every input bit.</p>
                 <span class="card-path">/api/txtpanel/full</span>
             </a>
+
             <a class="card" href="/api/txtpanel/nothing">
                 <h2 class="card-title">nothing</h2>
                 <p class="card-desc">idle signal. clock stays off.</p>
                 <span class="card-path">/api/txtpanel/nothing</span>
             </a>
+
             <a class="card" href="/api/typewriter/current">
-                <h2 class="card-title">typewriter</h2>
-                <p class="card-desc">next letter the panel should show.</p>
+                <h2 class="card-title">typewriter feed</h2>
+                <p class="card-desc">next letter the panel should show. needs sid header.</p>
                 <span class="card-path">/api/typewriter/current</span>
             </a>
+
             <a class="card" href="/api/typewriter/status">
                 <h2 class="card-title">whats on the panel</h2>
-                <p class="card-desc">last char the panel received.</p>
+                <p class="card-desc">last char the panel received for a session.</p>
                 <span class="card-path">/api/typewriter/status</span>
             </a>
+
             <a class="card" href="/api/panel/current">
                 <h2 class="card-title">image panel (16x16)</h2>
                 <p class="card-desc">next image pixel per GET.</p>
@@ -108,4 +109,4 @@
 
     <script src="/static/main.js" defer></script>
 </body>
-                                                     </html>
+</html>
