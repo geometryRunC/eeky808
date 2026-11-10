@@ -1444,17 +1444,12 @@ html { scrollbar-color: #555555 transparent; }
     border-color: var(--border-hover);
     transform: translateY(-1px);
 }
-.rt-btn:active {
-    transform: scale(0.95);
-}
+.rt-btn:active { transform: scale(0.95); }
 .rt-btn-bold { font-weight: 700; }
 .rt-btn-italic { font-style: italic; }
 .rt-btn-underline { text-decoration: underline; }
 .rt-btn-strike { text-decoration: line-through; }
-.rt-btn-sm {
-    padding: 4px 8px;
-    font-size: 0.7rem;
-}
+.rt-btn-sm { padding: 4px 8px; font-size: 0.7rem; }
 
 .rt-sep {
     display: inline-block;
@@ -1500,6 +1495,35 @@ html { scrollbar-color: #555555 transparent; }
 .rt-number-input:focus {
     border-color: var(--a1);
     box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.1);
+}
+
+.rt-select {
+    padding: 5px 8px;
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    color: var(--text);
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    outline: none;
+    cursor: pointer;
+    max-width: 140px;
+    text-transform: none;
+}
+.rt-select:focus {
+    border-color: var(--a1);
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.1);
+}
+.rt-select optgroup {
+    background: #0a0a0a;
+    color: var(--text-faint);
+    font-style: normal;
+    font-size: 0.75rem;
+}
+.rt-select option {
+    background: var(--bg);
+    color: var(--text);
+    padding: 4px;
 }
 
 .rt-stroke-panel {
@@ -1615,9 +1639,7 @@ html { scrollbar-color: #555555 transparent; }
     letter-spacing: 0.08em;
     font-size: 0.72rem;
 }
-.rt-cheatsheet summary:hover {
-    color: #fff;
-}
+.rt-cheatsheet summary:hover { color: #fff; }
 .rt-cheatsheet-body {
     margin-top: 12px;
     display: flex;
@@ -1637,7 +1659,5 @@ html { scrollbar-color: #555555 transparent; }
 }
 
 @media (max-width: 900px) {
-    .rt-layout {
-        grid-template-columns: 1fr;
+    .rt-layout { grid-template-columns: 1fr; }
     }
-}
