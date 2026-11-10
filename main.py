@@ -68,6 +68,13 @@ def decode_page(request: Request):
 def typewriter_page(request: Request):
     return templates.TemplateResponse(request, "typewriter.html", {"request": request, "title": "typewriter - eeky808"})
 
+@app.get("/richtext", response_class=HTMLResponse)
+def richtext_page(request: Request):
+    return templates.TemplateResponse(request, "richtext.html", {
+        "request": request,
+        "title": "rich text - eeky808",
+    })
+
 # ---------- APIs ----------
 api = APIRouter(prefix="/api")
 
