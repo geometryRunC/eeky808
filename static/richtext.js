@@ -6,6 +6,52 @@
     var status = document.getElementById("rt-status");
     if (!textarea) return;
 
+    // --- Roblox font face → closest CSS font for preview ---
+    var FONT_MAP = {
+        Arial: "Arial, Helvetica, sans-serif",
+        ArialBold: "Arial, Helvetica, sans-serif",
+        SourceSans: "system-ui, -apple-system, sans-serif",
+        SourceSansBold: "system-ui, -apple-system, sans-serif",
+        Bodoni: "'Bodoni MT', Didot, Georgia, serif",
+        Garamond: "Garamond, 'Times New Roman', serif",
+        Antique: "Georgia, 'Times New Roman', serif",
+        Merriweather: "Georgia, serif",
+        Cartoon: "'Comic Sans MS', 'Chalkboard SE', cursive",
+        Highway: "Impact, 'Arial Black', sans-serif",
+        SciFi: "'Arial Narrow', sans-serif",
+        Arcade: "'Courier New', monospace",
+        Fantasy: "Papyrus, fantasy",
+        Bangers: "Impact, 'Arial Black', cursive",
+        FredokaOne: "'Comic Sans MS', cursive",
+        LuckiestGuy: "Impact, sans-serif",
+        PermanentMarker: "'Comic Sans MS', cursive",
+        Creepster: "Impact, cursive",
+        GrenzeGotisch: "Georgia, serif",
+        Gotham: "Montserrat, 'Helvetica Neue', sans-serif",
+        GothamMedium: "Montserrat, 'Helvetica Neue', sans-serif",
+        GothamBold: "Montserrat, 'Helvetica Neue', sans-serif",
+        GothamBlack: "Montserrat, 'Helvetica Neue', sans-serif",
+        Code: "'Courier New', monospace",
+        RobotoMono: "'Courier New', monospace",
+        SpecialElite: "'Courier New', monospace",
+        AmaticSC: "cursive",
+        IndieFlower: "cursive",
+        Kalam: "cursive",
+        PatrickHand: "cursive",
+        Roboto: "Roboto, Arial, sans-serif",
+        RobotoCondensed: "'Arial Narrow', sans-serif",
+        Oswald: "Impact, 'Arial Narrow', sans-serif",
+        Nunito: "Arial, sans-serif",
+        JosefinSans: "Arial, sans-serif",
+        Jura: "Arial, sans-serif",
+        Michroma: "Arial, sans-serif",
+        TitilliumWeb: "Arial, sans-serif",
+        Ubuntu: "Ubuntu, Arial, sans-serif",
+        Sarpanch: "Arial, sans-serif",
+        DenkOne: "Arial, sans-serif",
+        Fondamento: "Georgia, serif"
+    };
+
     // --- wrap selection with open/close tags ---
     function wrapSelection(openTag, closeTag) {
         var start = textarea.selectionStart;
@@ -52,13 +98,11 @@
 
     // --- roblox rich text → html for preview ---
     function robloxToHtml(text) {
-        // escape html
         var html = text
             .replace(/&/g, "&amp;")
             .replace(/</g, "&lt;")
             .replace(/>/g, "&gt;");
 
-        // decode user-typed escape forms back (they want literal < > " ' &)
         html = html
             .replace(/&amp;lt;/g, "&lt;")
             .replace(/&amp;gt;/g, "&gt;")
@@ -66,7 +110,6 @@
             .replace(/&amp;apos;/g, "&#39;")
             .replace(/&amp;amp;/g, "&amp;");
 
-        // strip comments
         html = html.replace(/&lt;!--[\s\S]*?--&gt;/g, "");
 
         // <font ...>
@@ -79,7 +122,10 @@
             var trans = attrs.match(/transparency="([\d.]+)"/);
             if (color) styles.push("color:" + color[1]);
             if (size) styles.push("font-size:" + size[1] + "px");
-            if (face) styles.push("font-family:" + face[1]);
+            if (face) {
+                var mapped = FONT_MAP[face[1]] || face[1];
+                styles.push("font-family:" + mapped);
+            }
             if (weight) styles.push("font-weight:" + weight[1]);
             if (trans) styles.push("opacity:" + (1 - parseFloat(trans[1])));
             return '<span style="' + styles.join(";") + '">';
@@ -154,6 +200,16 @@
     document.getElementById("rt-size-apply").addEventListener("click", function () {
         var size = document.getElementById("rt-size").value || "16";
         wrapSelection('<font size="' + size + '">', "</font>");
+    });
+
+    // --- font face ---
+    document.getElementById("rt-font-apply").addEventListener("click", function () {
+        var face = document.getElementById("rt-font").value;
+        if (!face) {
+            status.textContent = "> pick a font first";
+            return;
+        }
+        wrapSelection('<font face="' + face + '">', "</font>");
     });
 
     // --- stroke ---
