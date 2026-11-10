@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{{ title }}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+    <div class="bg-orb bg-orb-1"></div>
+    <div class="bg-orb bg-orb-2"></div>
+    <div class="bg-orb bg-orb-3"></div>
+
+    <main class="container">
+        <header class="hero">
+            <div class="badge">rich text generator</div>
+            <h1 class="hero-title">rich text</h1>
+            <p class="hero-tagline">make your server title look fancy</p>
+            <div class="hero-actions">
+                <a class="btn btn-ghost" href="/">&larr; back home</a>
+                <a class="btn btn-ghost" href="/docs">api docs</a>
+            </div>
+        </header>
+
+        <section class="rt-layout">
+            <div class="rt-editor">
+                <p class="rt-section-label">toolbar</p>
+                <div class="rt-toolbar">
+                    <button type="button" class="rt-btn rt-btn-bold" data-tag="b" title="bold">B</button>
+                    <button type="button" class="rt-btn rt-btn-italic" data-tag="i" title="italic">I</button>
+                    <button type="button" class="rt-btn rt-btn-underline" data-tag="u" title="underline">U</button>
+                    <button type="button" class="rt-btn rt-btn-strike" data-tag="s" title="strikethrough">S</button>
+                    <span class="rt-sep"></span>
+                    <button type="button" class="rt-btn" data-tag="uppercase" title="uppercase">UC</button>
+                    <button type="button" class="rt-btn" data-tag="smallcaps" title="small caps">SC</button>
+                    <button type="button" class="rt-btn" data-tag="mark" title="highlight">Mark</button>
+                    <span class="rt-sep"></span>
+                    <label class="rt-inline-label" title="font color">
+                        color
+                        <input type="color" id="rt-color" value="#ffffff" class="rt-color-input" />
+                    </label>
+                    <span class="rt-sep"></span>
+                    <label class="rt-inline-label" title="font size">
+                        size
+                        <input type="number" id="rt-size" value="16" min="8" max="100" class="rt-number-input" />
+                        <button type="button" class="rt-btn rt-btn-sm" id="rt-size-apply">apply</button>
+                    </label>
+                    <span class="rt-sep"></span>
+                    <button type="button" class="rt-btn" id="rt-stroke-open" title="outline text">stroke</button>
+                </div>
+
+                <div class="rt-stroke-panel" id="rt-stroke-panel" hidden>
+                    <label class="rt-inline-label">
+                        color
+                        <input type="color" id="rt-stroke-color" value="#00a2ff" class="rt-color-input" />
+                    </label>
+                    <label class="rt-inline-label">
+                        thickness
+                        <input type="number" id="rt-stroke-thickness" value="1" min="0.5" max="10" step="0.5" class="rt-number-input" />
+                    </label>
+                    <label class="rt-inline-label">
+                        transparency
+                        <input type="number" id="rt-stroke-trans" value="0" min="0" max="1" step="0.1" class="rt-number-input" />
+                    </label>
+                    <button type="button" class="rt-btn rt-btn-sm" id="rt-stroke-apply">apply stroke</button>
+                </div>
+
+                <p class="rt-section-label">markup</p>
+                <textarea
+                    id="rt-input"
+                    class="rt-textarea"
+                    rows="6"
+                    placeholder="type your server title here, or use the toolbar to add formatting..."
+                    spellcheck="false"
+                >Welcome to &lt;b&gt;my server&lt;/b&gt;!</textarea>
+
+                <p class="rt-section-label">insert special chars</p>
+                <div class="rt-escapes">
+                    <button type="button" class="rt-btn" data-insert="&lt;" title="less than">&amp;lt;</button>
+                    <button type="button" class="rt-btn" data-insert="&gt;" title="greater than">&amp;gt;</button>
+                    <button type="button" class="rt-btn" data-insert="&quot;" title="double quote">&amp;quot;</button>
+                    <button type="button" class="rt-btn" data-insert="&apos;" title="single quote">&amp;apos;</button>
+                    <button type="button" class="rt-btn" data-insert="&amp;" title="ampersand">&amp;amp;</button>
+                    <button type="button" class="rt-btn" data-insert="<br/>" title="line break">&lt;br/&gt;</button>
+                </div>
+
+                <div class="rt-actions">
+                    <button type="button" class="btn btn-ghost" id="rt-clear">clear</button>
+                    <button type="button" class="btn btn-primary" id="rt-copy">copy markup</button>
+                </div>
+                <p class="rt-status" id="rt-status"></p>
+            </div>
+
+            <div class="rt-preview-wrap">
+                <p class="rt-section-label">live preview</p>
+                <div class="rt-preview" id="rt-preview"></div>
+                <p class="rt-hint">
+                    paste the markup into your server title's <code>RichText</code> text box.
+                    roblox only renders these tags if <code>RichText = true</code> on the text label.
+                </p>
+
+                <details class="rt-cheatsheet">
+                    <summary>all supported tags</summary>
+                    <div class="rt-cheatsheet-body">
+                        <div><code>&lt;b&gt;</code><code>&lt;/b&gt;</code> bold</div>
+                        <div><code>&lt;i&gt;</code><code>&lt;/i&gt;</code> italic</div>
+                        <div><code>&lt;u&gt;</code><code>&lt;/u&gt;</code> underline</div>
+                        <div><code>&lt;s&gt;</code><code>&lt;/s&gt;</code> strikethrough</div>
+                        <div><code>&lt;uppercase&gt;</code> / <code>&lt;uc&gt;</code> uppercase</div>
+                        <div><code>&lt;smallcaps&gt;</code> / <code>&lt;sc&gt;</code> small caps</div>
+                        <div><code>&lt;font color="" size="" face="" weight="" transparency=""&gt;</code></div>
+                        <div><code>&lt;stroke color="" thickness="" transparency=""&gt;</code></div>
+                        <div><code>&lt;mark color="" transparency=""&gt;</code></div>
+                        <div><code>&lt;br/&gt;</code> line break</div>
+                        <div><code>&lt;!-- --&gt;</code> comment (hidden)</div>
+                    </div>
+                </details>
+            </div>
+        </section>
+
+        <footer class="footer">
+            <span>inspired by <a href="https://www.roblox.com/games/9527099245/Build-Logic" target="_blank" rel="noopener">build logic on roblox</a> by tomtom4500</span>
+            <span>&middot;</span>
+            <a href="/">home</a>
+            <span>&middot;</span>
+            <a href="/docs">/docs</a>
+        </footer>
+    </main>
+
+    <script src="/static/richtext.js" defer></script>
+</body>
+  </html>
