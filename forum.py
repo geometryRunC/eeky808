@@ -111,6 +111,10 @@ async def _init_schema(pool: asyncpg.Pool) -> None:
                 updated_at DOUBLE PRECISION NOT NULL
             );
         """)
+        # user tags (added later — ALTER for existing DBs)
+       await conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS tag_text TEXT;")
+       await conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS tag_color_1 TEXT;")
+       await conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS tag_color_2 TEXT;")
 
 
 # ---------- Auth ----------
