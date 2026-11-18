@@ -671,3 +671,60 @@ async def upload_image(request: Request, file: UploadFile = File(...)):
     if r.status_code >= 400 or not r.text.startswith("https://"):
         raise HTTPException(502, f"upload failed: {r.text[:200]}")
     return JSONResponse({"url": r.text.strip()})
+
+# ---------- User tags (admin only) ----------
+_HEX_COLOR_RE = re.compile(r"^#[0-9A-Fa-f]{6}$")
+
+
+@router.post("/user/{user_id}/tag")
+async def set_user_tag(user_id: int, request: Request):
+    pool = await _ensure_pool()
+    admin = await _current_user(request, pool)
+    if not admin or admin["role"] != "admin":
+        raise HTTPException(403, "admin only")
+
+    form = await request.form()
+    tag_text = (form.get("tag_text") or "").strip()[:20]
+    c1 = (form.get("tag_color_1") or "").strip()
+    c2 = (form.get("tag_color_2") or "").strip()
+
+    # empty tag = clear it
+    if not tag_text:
+        async with pool.acquire() as conn:
+            await conn.execute(
+                "UPDATE users SET tag_text = NULL, tag_color_1 = NULL, tag_color_2 = NULL WHERE id = $1",
+                user_id,
+            )
+        _session_cache.clear()
+        return RedirectResponse("/forum/mod", status_code=303)
+
+    if not _HEX_COLOR_RE.match(c1):
+        raise HTTPException(400, "color 1 must be #rrggbb")
+    if not _HEX_COLOR_RE.match(c2):
+        raise HTTPException(400, "color 2 must be #rrggbb")
+
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow("SELECT id FROM users WHERE id = $1", user_id)
+        if not row:
+            raise HTTPException(404, "user not found")
+        await conn.execute(
+            "UPDATE users SET tag_text = $1, tag_color_1 = $2, tag_color_2 = $3 WHERE id = $4",
+            tag_text, c1.lower(), c2.lower(), user_id,
+        )
+    _session_cache.clear()
+    return RedirectResponse("/forum/mod", status_code=303)
+
+
+@router.post("/user/{user_id}/clear-tag")
+async def clear_user_tag(user_id: int, request: Request):
+    pool = await _ensure_pool()
+    admin = await _current_user(request, pool)
+    if not admin or admin["role"] != "admin":
+        raise HTTPException(403, "admin only")
+    async with pool.acquire() as conn:
+        await conn.execute(
+            "UPDATE users SET tag_text = NULL, tag_color_1 = NULL, tag_color_2 = NULL WHERE id = $1",
+            user_id,
+        )
+    _session_cache.clear()
+    return RedirectResponse("/forum/mod", status_code=303)
