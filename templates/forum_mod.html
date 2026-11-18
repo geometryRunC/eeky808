@@ -1,4 +1,5 @@
 {% extends "forum_base.html" %}
+{% from "_forum_macros.html" import user_tag %}
 {% block body %}
 <section class="forum-section">
     <h1 class="forum-h1">moderation</h1>
@@ -15,7 +16,10 @@
                             <span class="badge-role badge-flag">{{ p.flagged }} flags</span>
                             <a href="/forum/post/{{ p.id }}" class="forum-post-title">{{ p.title }}</a>
                         </div>
-                        <div class="forum-post-meta">by {{ p.username }}</div>
+                        <div class="forum-post-meta">
+                            by {{ p.username }}
+                            {{ user_tag(p) }}
+                        </div>
                     </div>
                     <form method="post" action="/forum/post/{{ p.id }}/clear-flag" style="display:inline">
                         <button class="forum-btn-sm">clear</button>
@@ -32,12 +36,31 @@
     <div class="forum-user-list">
         {% for u in users %}
             <div class="forum-user-row">
-                <span class="forum-user-name">
-                    {{ u.username }}
-                    {% if u.role == "admin" %}<span class="badge-role badge-admin">admin</span>{% endif %}
-                    {% if u.role == "mod" %}<span class="badge-role badge-mod">mod</span>{% endif %}
-                    {% if u.banned %}<span class="badge-role badge-ban">banned</span>{% endif %}
-                </span>
+                <div class="forum-user-main">
+                    <span class="forum-user-name">
+                        {{ u.username }}
+                        {{ user_tag(u) }}
+                        {% if u.role == "admin" %}<span class="badge-role badge-admin">admin</span>{% endif %}
+                        {% if u.role == "mod" %}<span class="badge-role badge-mod">mod</span>{% endif %}
+                        {% if u.banned %}<span class="badge-role badge-ban">banned</span>{% endif %}
+                    </span>
+                    {% if is_admin %}
+                    <details class="forum-tag-editor">
+                        <summary>edit tag</summary>
+                        <form method="post" action="/forum/user/{{ u.id }}/tag" class="forum-tag-form">
+                            <input type="text" name="tag_text" value="{{ u.tag_text or '' }}" maxlength="20" placeholder="tag text" />
+                            <input type="color" name="tag_color_1" value="{{ u.tag_color_1 or '#ffffff' }}" title="color 1" />
+                            <input type="color" name="tag_color_2" value="{{ u.tag_color_2 or '#8a8a8a' }}" title="color 2" />
+                            <button type="submit" class="forum-btn-sm">save</button>
+                        </form>
+                        {% if u.tag_text %}
+                        <form method="post" action="/forum/user/{{ u.id }}/clear-tag" class="forum-tag-clear">
+                            <button type="submit" class="forum-btn-sm forum-btn-danger">clear tag</button>
+                        </form>
+                        {% endif %}
+                    </details>
+                    {% endif %}
+                </div>
                 <div class="forum-user-actions">
                     {% if is_admin and u.role != "admin" %}
                         <form method="post" action="/forum/user/{{ u.id }}/role" style="display:inline">
