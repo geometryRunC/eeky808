@@ -1,0 +1,26 @@
+{% extends "forum_base.html" %}
+{% block body %}
+<section class="forum-section forum-section-narrow">
+    <h1 class="forum-h1">{% if mode == "register" %}register{% else %}log in{% endif %}</h1>
+
+    {% if error %}
+        <p class="forum-error">{{ error }}</p>
+    {% endif %}
+
+    <form method="post" action="/forum/{% if mode == 'register' %}register{% else %}login{% endif %}" class="forum-form">
+        <label>username
+            <input type="text" name="username" required minlength="3" maxlength="20" autocomplete="username" />
+        </label>
+        <label>password
+            <input type="password" name="password" required minlength="6" autocomplete="{% if mode == 'register' %}new-password{% else %}current-password{% endif %}" />
+        </label>
+        <input type="hidden" name="next" value="{{ next }}" />
+        <div class="forum-form-actions">
+            <a href="/forum/{% if mode == 'register' %}login{% else %}register{% endif %}{% if next %}?next={{ next }}{% endif %}" class="btn btn-ghost">
+                {% if mode == "register" %}have an account?{% else %}need an account?{% endif %}
+            </a>
+            <button type="submit" class="btn btn-primary">{% if mode == "register" %}create account{% else %}log in{% endif %}</button>
+        </div>
+    </form>
+</section>
+{% endblock %}
