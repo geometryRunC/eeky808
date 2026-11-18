@@ -1,0 +1,37 @@
+{% extends "forum_base.html" %}
+{% block body %}
+<section class="forum-section">
+    <h1 class="forum-h1">new post</h1>
+    <form method="post" action="/forum/new" class="forum-form">
+        <label>title
+            <input type="text" name="title" required maxlength="200" placeholder="what's this about?" />
+        </label>
+        <label>body (rich text markup)
+            <textarea name="body" rows="8" required maxlength="10000"
+                placeholder="use <b>bold</b>, <i>italic</i>, <u>underline</u>, <font color=&quot;#ff7800&quot;>color</font>, etc."></textarea>
+        </label>
+        <label>image url (optional)
+            <input type="url" name="image_url" placeholder="https://..." />
+        </label>
+        <div class="forum-form-actions">
+            <a href="/forum" class="btn btn-ghost">cancel</a>
+            <button type="submit" class="btn btn-primary">post</button>
+        </div>
+    </form>
+
+    <details class="forum-tips">
+        <summary>rich text cheat sheet</summary>
+        <div class="forum-tips-body">
+            <code>&lt;b&gt;bold&lt;/b&gt;</code>
+            <code>&lt;i&gt;italic&lt;/i&gt;</code>
+            <code>&lt;u&gt;underline&lt;/u&gt;</code>
+            <code>&lt;s&gt;strike&lt;/s&gt;</code>
+            <code>&lt;font color="#ff7800"&gt;color&lt;/font&gt;</code>
+            <code>&lt;font size="24"&gt;size&lt;/font&gt;</code>
+            <code>&lt;uppercase&gt;LOUD&lt;/uppercase&gt;</code>
+            <code>&lt;mark&gt;highlight&lt;/mark&gt;</code>
+            <code>&lt;br/&gt;</code> line break
+        </div>
+    </details>
+</section>
+{% endblock %}
