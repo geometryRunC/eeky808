@@ -12,7 +12,7 @@
                 by <strong>{{ post.username }}</strong>
                 {% if post.author_role == "admin" %}<span class="badge-role badge-admin">admin</span>{% endif %}
                 {% if post.author_role == "mod" %}<span class="badge-role badge-mod">mod</span>{% endif %}
-                &middot; {{ post.created_at | int | timestamp }}
+                &middot; <span data-ts="{{ post.created_at }}"></span>
                 {% if post.updated_at != post.created_at %} &middot; edited{% endif %}
             </p>
         </div>
@@ -85,7 +85,7 @@
                     <strong>{{ r.username }}</strong>
                     {% if r.author_role == "admin" %}<span class="badge-role badge-admin">admin</span>{% endif %}
                     {% if r.author_role == "mod" %}<span class="badge-role badge-mod">mod</span>{% endif %}
-                    <span class="forum-reply-time">{{ r.created_at | int | timestamp }}</span>
+                    <span class="forum-reply-time" data-ts="{{ r.created_at }}"></span>
                     {% if user and (user.id == r.author_id or user.role in ("mod", "admin")) %}
                         <form method="post" action="/forum/reply/{{ r.id }}/delete" style="display:inline;margin-left:auto" onsubmit="return confirm('delete reply?');">
                             <button class="forum-btn-xs forum-btn-danger">delete</button>
