@@ -2136,3 +2136,32 @@ html { scrollbar-color: #555555 transparent; }
     .forum-user-row { flex-direction: column; align-items: stretch; }
     .forum-post-thumb { display: none; }
     }
+
+/* ---------- User tags (gradient badges) ---------- */
+
+.user-tag {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 5px;
+    border: none;
+    background: linear-gradient(90deg, var(--t1, #ffffff) 0%, var(--t2, #8a8a8a) 100%);
+    vertical-align: middle;
+    line-height: 1.4;
+    margin-left: 6px;
+    box-shadow: 0 1px 6px -2px var(--t1, rgba(255,255,255,0.3));
+}
+
+.user-tag-inner {
+    display: inline-block;
+    background: none;
+    -webkit-background-clip: initial;
+    background-clip: initial;
+    -webkit-text-fill-color: #0a0a0a;
+    color: #0a0a0a;
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.2);
+}
