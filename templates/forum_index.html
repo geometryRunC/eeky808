@@ -1,0 +1,43 @@
+{% extends "forum_base.html" %}
+{% block body %}
+<section class="forum-section">
+    <div class="forum-header">
+        <h1 class="forum-h1">forum</h1>
+        <span class="forum-count">{{ total }} post{% if total != 1 %}s{% endif %}</span>
+    </div>
+
+    {% if not posts %}
+        <div class="forum-empty">no posts yet. be the first!</div>
+    {% else %}
+        <div class="forum-list">
+            {% for p in posts %}
+                <a href="/forum/post/{{ p.id }}" class="forum-post-row">
+                    <div class="forum-post-main">
+                        <div class="forum-post-title-line">
+                            {% if p.pinned %}<span class="badge-role badge-pin">pinned</span>{% endif %}
+                            {% if p.locked %}<span class="badge-role badge-lock">locked</span>{% endif %}
+                            {% if p.flagged > 0 %}<span class="badge-role badge-flag">{{ p.flagged }} flag{% if p.flagged != 1 %}s{% endif %}</span>{% endif %}
+                            <span class="forum-post-title">{{ p.title }}</span>
+                        </div>
+                        <div class="forum-post-meta">
+                            by <strong>{{ p.username }}</strong>
+                            {% if p.author_role == "admin" %}<span class="badge-role badge-admin">admin</span>{% endif %}
+                            {% if p.author_role == "mod" %}<span class="badge-role badge-mod">mod</span>{% endif %}
+                            &middot; {{ p.reply_count }} repl{% if p.reply_count == 1 %}y{% else %}ies{% endif %}
+                        </div>
+                    </div>
+                    {% if p.image_url %}<div class="forum-post-thumb" style="background-image:url('{{ p.image_url }}')"></div>{% endif %}
+                </a>
+            {% endfor %}
+        </div>
+
+        {% if pages > 1 %}
+        <div class="forum-pager">
+            {% if page > 1 %}<a href="/forum?page={{ page - 1 }}">&larr; prev</a>{% endif %}
+            <span>page {{ page }} / {{ pages }}</span>
+            {% if page < pages %}<a href="/forum?page={{ page + 1 }}">next &rarr;</a>{% endif %}
+        </div>
+        {% endif %}
+    {% endif %}
+</section>
+{% endblock %}
