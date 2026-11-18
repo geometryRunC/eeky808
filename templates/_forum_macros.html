@@ -1,0 +1,3 @@
+{% macro user_tag(u) -%}
+{% if u.tag_text and u.tag_color_1 and u.tag_color_2 %}<span class="user-tag" style="--t1:{{ u.tag_color_1 }};--t2:{{ u.tag_color_2 }}"><span class="user-tag-inner">{{ u.tag_text }}</span></span>{% endif %}
+{%- endmacro %}
