@@ -1,4 +1,5 @@
 {% extends "forum_base.html" %}
+{% from "_forum_macros.html" import user_tag %}
 {% block body %}
 <section class="forum-section">
     <div class="forum-header">
@@ -21,9 +22,11 @@
                         </div>
                         <div class="forum-post-meta">
                             by <strong>{{ p.username }}</strong>
+                            {{ user_tag(p) }}
                             {% if p.author_role == "admin" %}<span class="badge-role badge-admin">admin</span>{% endif %}
                             {% if p.author_role == "mod" %}<span class="badge-role badge-mod">mod</span>{% endif %}
                             &middot; {{ p.reply_count }} repl{% if p.reply_count == 1 %}y{% else %}ies{% endif %}
+                            &middot; <span data-ts="{{ p.created_at }}"></span>
                         </div>
                     </div>
                     {% if p.image_url %}<div class="forum-post-thumb" style="background-image:url('{{ p.image_url }}')"></div>{% endif %}
