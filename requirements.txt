@@ -1,4 +1,5 @@
 fastapi[all]
 jinja2
-starlette>=1.0
 Pillow
+httpx
+asyncpg>=0.29.0
