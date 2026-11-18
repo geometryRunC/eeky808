@@ -1,0 +1,13 @@
+{% extends "forum_base.html" %}
+{% block body %}
+<section class="forum-section forum-section-narrow">
+    <h1 class="forum-h1">error {{ code }}</h1>
+    <p class="forum-error">{{ message }}</p>
+    <div class="forum-form-actions">
+        <a href="/forum" class="btn btn-ghost">back to forum</a>
+        {% if code == 401 %}
+            <a href="/forum/login" class="btn btn-primary">log in</a>
+        {% endif %}
+    </div>
+</section>
+{% endblock %}
