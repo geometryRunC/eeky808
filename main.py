@@ -11,6 +11,8 @@ from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 from typing import Optional
 
+from forum import router as forum_router, api_router as forum_api_router
+
 try:
     from PIL import Image, ImageOps
     _PIL_AVAILABLE = True
@@ -526,5 +528,7 @@ def decode_block(body: DecodeBody):
         raise HTTPException(400, f"decode error: {e}")
     return JSONResponse(result, headers=_NO_STORE)
 
-# ---------- Mount router ----------
+# ---------- Mount routers ----------
+app.include_router(forum_router)
+app.include_router(forum_api_router)
 app.include_router(api)
