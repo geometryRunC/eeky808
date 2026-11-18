@@ -1,0 +1,63 @@
+{% extends "forum_base.html" %}
+{% block body %}
+<section class="forum-section">
+    <h1 class="forum-h1">moderation</h1>
+
+    <h2 class="forum-h2">flagged posts</h2>
+    {% if not flagged %}
+        <p class="forum-empty-small">no flagged posts. nice.</p>
+    {% else %}
+        <div class="forum-list">
+            {% for p in flagged %}
+                <div class="forum-post-row forum-post-mod">
+                    <div class="forum-post-main">
+                        <div class="forum-post-title-line">
+                            <span class="badge-role badge-flag">{{ p.flagged }} flags</span>
+                            <a href="/forum/post/{{ p.id }}" class="forum-post-title">{{ p.title }}</a>
+                        </div>
+                        <div class="forum-post-meta">by {{ p.username }}</div>
+                    </div>
+                    <form method="post" action="/forum/post/{{ p.id }}/clear-flag" style="display:inline">
+                        <button class="forum-btn-sm">clear</button>
+                    </form>
+                    <form method="post" action="/forum/post/{{ p.id }}/delete" onsubmit="return confirm('delete this post?');" style="display:inline">
+                        <button class="forum-btn-sm forum-btn-danger">delete</button>
+                    </form>
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    <h2 class="forum-h2">users ({{ users | length }})</h2>
+    <div class="forum-user-list">
+        {% for u in users %}
+            <div class="forum-user-row">
+                <span class="forum-user-name">
+                    {{ u.username }}
+                    {% if u.role == "admin" %}<span class="badge-role badge-admin">admin</span>{% endif %}
+                    {% if u.role == "mod" %}<span class="badge-role badge-mod">mod</span>{% endif %}
+                    {% if u.banned %}<span class="badge-role badge-ban">banned</span>{% endif %}
+                </span>
+                <div class="forum-user-actions">
+                    {% if is_admin and u.role != "admin" %}
+                        <form method="post" action="/forum/user/{{ u.id }}/role" style="display:inline">
+                            <select name="role" class="forum-select-sm" onchange="this.form.submit()">
+                                <option value="user" {% if u.role == "user" %}selected{% endif %}>user</option>
+                                <option value="mod" {% if u.role == "mod" %}selected{% endif %}>mod</option>
+                                <option value="admin" {% if u.role == "admin" %}selected{% endif %}>admin</option>
+                            </select>
+                        </form>
+                    {% endif %}
+                    {% if u.role != "admin" %}
+                        <form method="post" action="/forum/user/{{ u.id }}/ban" style="display:inline">
+                            <button class="forum-btn-sm {% if not u.banned %}forum-btn-danger{% endif %}">
+                                {% if u.banned %}unban{% else %}ban{% endif %}
+                            </button>
+                        </form>
+                    {% endif %}
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+</section>
+{% endblock %}
