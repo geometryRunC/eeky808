@@ -59,6 +59,7 @@ async def _ensure_pool() -> asyncpg.Pool:
             command_timeout=15,
         )
         await _init_schema(_pool)
+        await _bootstrap_admin(_pool)
         return _pool
 
 
@@ -112,9 +113,43 @@ async def _init_schema(pool: asyncpg.Pool) -> None:
             );
         """)
         # user tags (added later — ALTER for existing DBs)
-       await conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS tag_text TEXT;")
-       await conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS tag_color_1 TEXT;")
-       await conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS tag_color_2 TEXT;")
+        await conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS tag_text TEXT;")
+        await conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS tag_color_1 TEXT;")
+        await conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS tag_color_2 TEXT;")
+
+
+async def _bootstrap_admin(pool: asyncpg.Pool) -> None:
+    """If FORUM_ADMIN_USERNAME and FORUM_ADMIN_PASSWORD are set, ensure that
+    user exists with role=admin and the given password."""
+    username = os.getenv("FORUM_ADMIN_USERNAME", "").strip()
+    password = os.getenv("FORUM_ADMIN_PASSWORD", "")
+    if not username or not password:
+        return
+    if not re.match(r"^[A-Za-z0-9_]{3,20}$", username):
+        print("[forum] FORUM_ADMIN_USERNAME invalid, skipping bootstrap")
+        return
+    if len(password) < 6:
+        print("[forum] FORUM_ADMIN_PASSWORD too short, skipping bootstrap")
+        return
+    salt = secrets.token_bytes(16)
+    pw_hash = _hash_pw(password, salt)
+    async with pool.acquire() as conn:
+        existing = await conn.fetchrow(
+            "SELECT id, role FROM users WHERE LOWER(username) = LOWER($1)", username
+        )
+        if existing:
+            await conn.execute(
+                "UPDATE users SET password_hash = $1, salt = $2, role = 'admin', banned = FALSE WHERE id = $3",
+                pw_hash, salt.hex(), existing["id"],
+            )
+            print(f"[forum] updated admin account '{username}'")
+        else:
+            await conn.execute(
+                "INSERT INTO users (username, password_hash, salt, role, banned, created_at) "
+                "VALUES ($1, $2, $3, 'admin', FALSE, $4)",
+                username, pw_hash, salt.hex(), time.time(),
+            )
+            print(f"[forum] created admin account '{username}'")
 
 
 # ---------- Auth ----------
@@ -293,7 +328,8 @@ def _sanitize_image_url(url: Optional[str]) -> Optional[str]:
 async def _fetch_post(pool, post_id: int) -> Optional[dict]:
     async with pool.acquire() as conn:
         row = await conn.fetchrow("""
-            SELECT p.*, u.username, u.role as author_role
+            SELECT p.*, u.username, u.role as author_role,
+                   u.tag_text, u.tag_color_1, u.tag_color_2
             FROM posts p JOIN users u ON p.author_id = u.id
             WHERE p.id = $1
         """, post_id)
@@ -303,7 +339,8 @@ async def _fetch_post(pool, post_id: int) -> Optional[dict]:
 async def _fetch_replies(pool, post_id: int) -> list:
     async with pool.acquire() as conn:
         rows = await conn.fetch("""
-            SELECT r.*, u.username, u.role as author_role
+            SELECT r.*, u.username, u.role as author_role,
+                   u.tag_text, u.tag_color_1, u.tag_color_2
             FROM replies r JOIN users u ON r.author_id = u.id
             WHERE r.post_id = $1
             ORDER BY r.created_at ASC
@@ -405,6 +442,7 @@ async def forum_index(request: Request, page: int = 1):
         total = await conn.fetchval("SELECT COUNT(*) FROM posts")
         rows = await conn.fetch("""
             SELECT p.*, u.username, u.role as author_role,
+                   u.tag_text, u.tag_color_1, u.tag_color_2,
                    (SELECT COUNT(*) FROM replies WHERE post_id = p.id) as reply_count
             FROM posts p JOIN users u ON p.author_id = u.id
             ORDER BY p.pinned DESC, p.created_at DESC
@@ -606,11 +644,14 @@ async def mod_panel(request: Request):
         raise HTTPException(403, "moderator only")
     async with pool.acquire() as conn:
         flagged_rows = await conn.fetch("""
-            SELECT p.*, u.username FROM posts p JOIN users u ON p.author_id = u.id
+            SELECT p.*, u.username, u.tag_text, u.tag_color_1, u.tag_color_2
+            FROM posts p JOIN users u ON p.author_id = u.id
             WHERE p.flagged > 0 ORDER BY p.flagged DESC, p.created_at DESC LIMIT 50
         """)
         user_rows = await conn.fetch(
-            "SELECT id, username, role, banned, created_at FROM users ORDER BY created_at DESC"
+            "SELECT id, username, role, banned, created_at, "
+            "tag_text, tag_color_1, tag_color_2 "
+            "FROM users ORDER BY created_at DESC"
         )
     return templates.TemplateResponse(request, "forum_mod.html",
         _ctx(request, user,
@@ -652,26 +693,6 @@ async def set_user_role(user_id: int, request: Request):
     return RedirectResponse("/forum/mod", status_code=303)
 
 
-# ---------- Image upload (via catbox, no account needed) ----------
-@api_router.post("/upload")
-async def upload_image(request: Request, file: UploadFile = File(...)):
-    pool = await _ensure_pool()
-    user = await _current_user(request, pool)
-    if not user:
-        raise HTTPException(401, "login required")
-    data = await file.read()
-    if len(data) > 5 * 1024 * 1024:
-        raise HTTPException(400, "image too big (max 5 MB)")
-    async with httpx.AsyncClient(timeout=60) as client:
-        r = await client.post(
-            "https://catbox.moe/user/api.php",
-            data={"reqtype": "fileupload"},
-            files={"fileToUpload": (file.filename or "image.png", data, file.content_type or "image/png")},
-        )
-    if r.status_code >= 400 or not r.text.startswith("https://"):
-        raise HTTPException(502, f"upload failed: {r.text[:200]}")
-    return JSONResponse({"url": r.text.strip()})
-
 # ---------- User tags (admin only) ----------
 _HEX_COLOR_RE = re.compile(r"^#[0-9A-Fa-f]{6}$")
 
@@ -688,7 +709,6 @@ async def set_user_tag(user_id: int, request: Request):
     c1 = (form.get("tag_color_1") or "").strip()
     c2 = (form.get("tag_color_2") or "").strip()
 
-    # empty tag = clear it
     if not tag_text:
         async with pool.acquire() as conn:
             await conn.execute(
@@ -728,3 +748,24 @@ async def clear_user_tag(user_id: int, request: Request):
         )
     _session_cache.clear()
     return RedirectResponse("/forum/mod", status_code=303)
+
+
+# ---------- Image upload (via catbox, no account needed) ----------
+@api_router.post("/upload")
+async def upload_image(request: Request, file: UploadFile = File(...)):
+    pool = await _ensure_pool()
+    user = await _current_user(request, pool)
+    if not user:
+        raise HTTPException(401, "login required")
+    data = await file.read()
+    if len(data) > 5 * 1024 * 1024:
+        raise HTTPException(400, "image too big (max 5 MB)")
+    async with httpx.AsyncClient(timeout=60) as client:
+        r = await client.post(
+            "https://catbox.moe/user/api.php",
+            data={"reqtype": "fileupload"},
+            files={"fileToUpload": (file.filename or "image.png", data, file.content_type or "image/png")},
+        )
+    if r.status_code >= 400 or not r.text.startswith("https://"):
+        raise HTTPException(502, f"upload failed: {r.text[:200]}")
+    return JSONResponse({"url": r.text.strip()})
