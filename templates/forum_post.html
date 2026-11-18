@@ -1,0 +1,122 @@
+{% extends "forum_base.html" %}
+{% block body %}
+<article class="forum-post-view">
+    <div class="forum-post-head">
+        <div>
+            <h1 class="forum-post-h1">
+                {% if post.pinned %}<span class="badge-role badge-pin">pinned</span>{% endif %}
+                {% if post.locked %}<span class="badge-role badge-lock">locked</span>{% endif %}
+                {{ post.title }}
+            </h1>
+            <p class="forum-post-sub">
+                by <strong>{{ post.username }}</strong>
+                {% if post.author_role == "admin" %}<span class="badge-role badge-admin">admin</span>{% endif %}
+                {% if post.author_role == "mod" %}<span class="badge-role badge-mod">mod</span>{% endif %}
+                &middot; {{ post.created_at | int | timestamp }}
+                {% if post.updated_at != post.created_at %} &middot; edited{% endif %}
+            </p>
+        </div>
+
+        {% if user %}
+        <div class="forum-post-actions">
+            {% if can_mod %}
+                <form method="post" action="/forum/post/{{ post.id }}/pin" style="display:inline">
+                    <button class="forum-btn-sm">{% if post.pinned %}unpin{% else %}pin{% endif %}</button>
+                </form>
+                <form method="post" action="/forum/post/{{ post.id }}/lock" style="display:inline">
+                    <button class="forum-btn-sm">{% if post.locked %}unlock{% else %}lock{% endif %}</button>
+                </form>
+                {% if post.flagged > 0 %}
+                    <form method="post" action="/forum/post/{{ post.id }}/clear-flag" style="display:inline">
+                        <button class="forum-btn-sm">clear flags</button>
+                    </form>
+                {% endif %}
+            {% endif %}
+            {% if can_edit %}
+                <a href="#edit-post" class="forum-btn-sm">edit</a>
+                <form method="post" action="/forum/post/{{ post.id }}/delete" style="display:inline" onsubmit="return confirm('delete this post?');">
+                    <button class="forum-btn-sm forum-btn-danger">delete</button>
+                </form>
+            {% endif %}
+            {% if not can_edit %}
+                <form method="post" action="/forum/post/{{ post.id }}/flag" style="display:inline">
+                    <button class="forum-btn-sm">flag</button>
+                </form>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="forum-post-body">{{ post_body_html | safe }}</div>
+    {% if post.image_url %}
+        <div class="forum-post-image">
+            <img src="{{ post.image_url }}" alt="post image" loading="lazy" />
+        </div>
+    {% endif %}
+
+    {% if can_edit %}
+        <details class="forum-edit" id="edit-post">
+            <summary>edit post</summary>
+            <form method="post" action="/forum/post/{{ post.id }}/edit" class="forum-form">
+                <label>title
+                    <input type="text" name="title" value="{{ post.title }}" required maxlength="200" />
+                </label>
+                <label>body (rich text markup)
+                    <textarea name="body" rows="6" required maxlength="10000">{{ post.body }}</textarea>
+                </label>
+                <label>image url (optional)
+                    <input type="url" name="image_url" value="{{ post.image_url or '' }}" placeholder="https://..." />
+                </label>
+                <button type="submit" class="btn btn-primary">save changes</button>
+            </form>
+        </details>
+    {% endif %}
+</article>
+
+<section class="forum-replies" id="replies">
+    <h2 class="forum-h2">replies ({{ replies_html | length }})</h2>
+
+    {% if not replies_html %}
+        <p class="forum-empty-small">no replies yet.</p>
+    {% else %}
+        {% for r in replies_html %}
+            <div class="forum-reply">
+                <div class="forum-reply-head">
+                    <strong>{{ r.username }}</strong>
+                    {% if r.author_role == "admin" %}<span class="badge-role badge-admin">admin</span>{% endif %}
+                    {% if r.author_role == "mod" %}<span class="badge-role badge-mod">mod</span>{% endif %}
+                    <span class="forum-reply-time">{{ r.created_at | int | timestamp }}</span>
+                    {% if user and (user.id == r.author_id or user.role in ("mod", "admin")) %}
+                        <form method="post" action="/forum/reply/{{ r.id }}/delete" style="display:inline;margin-left:auto" onsubmit="return confirm('delete reply?');">
+                            <button class="forum-btn-xs forum-btn-danger">delete</button>
+                        </form>
+                    {% endif %}
+                </div>
+                <div class="forum-reply-body">{{ r.body_html | safe }}</div>
+                {% if r.image_url %}<div class="forum-reply-image"><img src="{{ r.image_url }}" loading="lazy" /></div>{% endif %}
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    {% if post.locked %}
+        <p class="forum-locked">this post is locked. no new replies.</p>
+    {% elif user %}
+        <form method="post" action="/forum/post/{{ post.id }}/reply" class="forum-form forum-reply-form">
+            <label>reply (rich text)
+                <textarea name="body" rows="4" required maxlength="10000" placeholder="say something..."></textarea>
+            </label>
+            <label>image url (optional)
+                <input type="url" name="image_url" placeholder="https://..." />
+            </label>
+            <button type="submit" class="btn btn-primary">post reply</button>
+        </form>
+    {% else %}
+        <p class="forum-login-hint"><a href="/forum/login?next=/forum/post/{{ post.id }}">log in</a> to reply.</p>
+    {% endif %}
+</section>
+
+<script>
+    // tiny helper: convert unix timestamp → relative / readable
+    // applied server-side via jinja filter isn't set, so we format client-side later
+</script>
+{% endblock %}
